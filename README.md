@@ -1,5 +1,5 @@
 # Django-CRM
-
+# Ok you have to follow this step to run the backend no need to change any code
 ============
 
 Django CRM is opensource CRM developed on django framework. It has all
