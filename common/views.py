@@ -314,28 +314,36 @@ class UserDetailView(APIView):
             {"error": True, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
+#Nataliia sprint3
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def delete(self, request, pk, format=None):
+        # only Admin can delete other USERs 
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
             return Response(
-                {"error": True, "errors": "Permission Denied"},
+                {"error": True, "errors": "Permission Denied - you don`t have necessary access"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
         self.object = self.get_object(pk)
+
         if self.object.id == request.profile.id:
             return Response(
-                {"error": True, "errors": "Permission Denied"},
+                {"error": True, "errors": "Permission Denied - not possible to delete your own account"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
         deleted_by = self.request.profile.user.email
-        send_email_user_delete.delay(
-            self.object.user.email,
-            deleted_by=deleted_by,
-        )
+     #   send_email_user_delete.delay(
+      #      self.object.user.email,
+       #     deleted_by=deleted_by,
+        #)
+# Nataliia comment - here should a notification be sent to deleted user that his account 
+# has been deleted - temporary commented! - to fix later
         self.object.delete()
+
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
+# end Nataliia sprint3
 
 # check_header not working
 class ApiHomeView(APIView):
