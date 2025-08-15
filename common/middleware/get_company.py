@@ -4,6 +4,7 @@ from django.contrib.auth import logout
 from django.core.exceptions import ValidationError,PermissionDenied
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed
 from crum import get_current_user
 from django.utils.functional import SimpleLazyObject
 
@@ -44,6 +45,10 @@ class GetProfileAndOrg(object):
         return self.get_response(request)
 
     def process_request(self, request):
+        # Skip middleware for admin URLs and static files
+        if request.path.startswith('/admin/') or request.path.startswith('/static/') or request.path.startswith('/media/'):
+            return
+            
         try :
             request.profile = None
             user_id = None
@@ -70,6 +75,8 @@ class GetProfileAndOrg(object):
                     )
                     if profile:
                         request.profile = profile
-        except :
-             print('test1')
-             raise PermissionDenied()
+        except Exception as e:
+             print('Middleware error:', str(e))
+             # Only raise PermissionDenied for API endpoints, not for admin or other pages
+             if request.path.startswith('/api/'):
+                 raise PermissionDenied()
