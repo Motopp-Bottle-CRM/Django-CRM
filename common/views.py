@@ -895,13 +895,29 @@ class GoogleLoginView(APIView):
         try:
             user = User.objects.get(email=data['email'])
         except User.DoesNotExist:
-            user = User()
-            user.email = data['email']
-            user.profile_pic = data['picture']
-            # provider random default password
-            user.password = make_password(BaseUserManager().make_random_password())
-            user.email = data['email']
-            user.save()
+            # user = User()
+            # user.email = data['email']
+            # user.profile_pic = data['picture']
+            # # provider random default password
+            # user.password = make_password(BaseUserManager().make_random_password())
+            # user.email = data['email']
+            # user.save()
+            random_password = "".join(
+                [
+                    secrets.choice(
+                        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"
+                    )
+                    for _ in range(20)
+                ]
+            )
+    
+            # Create new user
+            user = User.objects.create(
+                email=data["email"],
+                profile_pic=data["picture", ""],
+                password=make_password(random_password)
+            )
+
         token = RefreshToken.for_user(user)  # generate token without username & password
         response = {}
         response['username'] = user.email
