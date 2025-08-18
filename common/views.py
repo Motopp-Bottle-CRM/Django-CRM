@@ -934,6 +934,25 @@ class GoogleLoginView(APIView):
         return Response(response)
 
 
+class FormLoginView(APIView):
+    """
+    Check for authentication with form login
+    post:
+        Returns token of logged In user
+    """
+
+    @extend_schema(
+        description="Login through Form",
+        request=FormLoginSerializer,
+    )
+    def post(self, request):
+        serializer = FormLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tokens = serializer.save()
+
+        return Response(tokens, status=status.HTTP_200_OK)
+
+
 class SetPasswordView(GenericAPIView):
     """
     Set password for user who has no password yet
@@ -941,6 +960,10 @@ class SetPasswordView(GenericAPIView):
 
     serializer_class = SetPasswordSerializer
 
+    @extend_schema(
+        description="set password through Form",
+        request=SetPasswordSerializer,
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
