@@ -1,4 +1,7 @@
+
+# Disable colorama ANSI colors to prevent OSError in Windows terminals
 import os
+os.environ["ANSI_COLORS_DISABLED"] = "1"
 import sys
 
 from django.core.wsgi import get_wsgi_application

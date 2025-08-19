@@ -45,11 +45,14 @@ class GetProfileAndOrg(object):
         return self.get_response(request)
 
     def process_request(self, request):
-        # Skip middleware for admin URLs and static files
-        if request.path.startswith('/admin/') or request.path.startswith('/static/') or request.path.startswith('/media/'):
+        # Skip middleware for admin URLs, static files, schema, and docs
+        skip_paths = [
+            '/admin/', '/static/', '/media/', '/schema/', '/swagger/', '/redoc/'
+        ]
+        if any(request.path.startswith(path) for path in skip_paths):
             return
-            
-        try :
+
+        try:
             request.profile = None
             user_id = None
             # here I am getting the the jwt token passing in header
@@ -76,7 +79,7 @@ class GetProfileAndOrg(object):
                     if profile:
                         request.profile = profile
         except Exception as e:
-             print('Middleware error:', str(e))
-             # Only raise PermissionDenied for API endpoints, not for admin or other pages
-             if request.path.startswith('/api/'):
-                 raise PermissionDenied()
+            print('Middleware error:', str(e))
+            # Only raise PermissionDenied for API endpoints, not for admin or other pages
+            if request.path.startswith('/api/'):
+                raise PermissionDenied()

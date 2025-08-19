@@ -1,5 +1,8 @@
+
 #!/usr/bin/env python
+# Disable colorama ANSI colors to prevent OSError in Windows terminals
 import os
+os.environ["ANSI_COLORS_DISABLED"] = "1"
 import sys
 
 if __name__ == "__main__":
