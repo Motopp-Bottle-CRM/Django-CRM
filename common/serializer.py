@@ -1,6 +1,7 @@
 import re
 
 from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
@@ -22,7 +23,7 @@ from common.models import (
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Org
-        fields = ("id", "name","api_key")
+        fields = ("id", "name", "api_key")
 
 
 class SocialLoginSerializer(serializers.Serializer):
@@ -61,7 +62,6 @@ class LeadCommentSerializer(serializers.ModelSerializer):
         )
 
 
-
 class OrgProfileCreateSerializer(serializers.ModelSerializer):
     """
     It is for creating organization
@@ -72,9 +72,7 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Org
         fields = ["name"]
-        extra_kwargs = {
-            "name": {"required": True}
-        }
+        extra_kwargs = {"name": {"required": True}}
 
     def validate_name(self, name):
         if bool(re.search(r"[~\!_.@#\$%\^&\*\ \(\)\+{}\":;'/\[\]]", name)):
@@ -180,7 +178,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id","email","profile_pic"]
+        fields = ["id", "email", "profile_pic"]
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -320,6 +318,7 @@ class APISettingsListSerializer(serializers.ModelSerializer):
             "org",
         ]
 
+
 class APISettingsSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = APISettings
@@ -341,39 +340,135 @@ class DocumentCreateSwaggerSerializer(serializers.ModelSerializer):
             "shared_to",
         ]
 
+
 class DocumentEditSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = [
-            "title",
-            "document_file",
-            "teams",
-            "shared_to",
-            "status"
-        ]
+        fields = ["title", "document_file", "teams", "shared_to", "status"]
 
 
 class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     It is swagger for creating or updating user
     """
+
     ROLE_CHOICES = ["ADMIN", "USER"]
 
-    email = serializers.CharField(max_length=1000,required=True)
-    role = serializers.ChoiceField(choices = ROLE_CHOICES,required=True)
+    email = serializers.CharField(max_length=1000, required=True)
+    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
     phone = serializers.CharField(max_length=12)
     alternate_phone = serializers.CharField(max_length=12)
-    address_line = serializers.CharField(max_length=10000,required=True)
+    address_line = serializers.CharField(max_length=10000, required=True)
     street = serializers.CharField(max_length=1000)
     city = serializers.CharField(max_length=1000)
     state = serializers.CharField(max_length=1000)
     pincode = serializers.CharField(max_length=1000)
     country = serializers.CharField(max_length=1000)
 
+
 class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
 
     STATUS_CHOICES = ["Active", "Inactive"]
 
-    status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
+    status = serializers.ChoiceField(choices=STATUS_CHOICES, required=True)
 
+
+class SetPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for setting a new password for a user who has no password yet.
+
+    """
+
+    User = get_user_model()
+
+    email = serializers.EmailField(required=True, write_only=True)
+    password = serializers.CharField(max_length=128, write_only=True, required=True)
+    confirmPassword = serializers.CharField(
+        max_length=128, write_only=True, required=True
+    )
+
+    def validate_password(self, value):
+        """Validate password strength."""
+        if len(value) < 8:
+            raise serializers.ValidationError(
+                "Password must be at least 8 characters long."
+            )
+
+        if not re.search(r"[A-Z]", value):
+            raise serializers.ValidationError(
+                "Password must contain at least one uppercase letter."
+            )
+        if not re.search(r"[a-z]", value):
+            raise serializers.ValidationError(
+                "Password must contain at least one lowercase letter."
+            )
+        if not re.search(r"[0-9]", value):
+            raise serializers.ValidationError(
+                "Password must contain at least one digit."
+            )
+        return value
+
+    def validate(self, attrs):
+        """Cross-field validation."""
+        if attrs["password"] != attrs["confirmPassword"]:
+            raise serializers.ValidationError(
+                {"confirmPassword": "Passwords do not match."}
+            )
+        return attrs
+
+    def save(self, **kwargs):
+        email = self.validated_data["email"]
+        password = self.validated_data["password"]
+        confirm_password = self.validated_data["confirmPassword"]
+
+        try:
+            user = User.objects.get(email=email)
+
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                {"email": "User with this email does not exist."}
+            )
+
+        user.set_password(password)
+        user.is_active = True  # Activate the user if they were inactive
+        user.save()
+        return user
+
+class FormLoginSerializer(serializers.Serializer):
+    """
+    Serializer for user login.
+    """
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+        user = authenticate(email=email, password=password)
+        if user is None:
+            raise serializers.ValidationError("Invalid email or password.")
+        if not user.is_active:
+            raise serializers.ValidationError("User account is inactive.")
+        attrs["user"] = user
+        return attrs
+    def create_tokens(self, user):
+        """
+        Create JWT tokens for the authenticated user.
+        """
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+
+        access["user_id"] = str(user.id)
+        access["email"] = user.email
+        return {
+            "refresh": str(refresh),
+            "access": str(access),
+            "user_id": str(user.id),
+            "email": user.email,
+        }
+    def save(self):
+        user = self.validated_data["user"]
+        tokens = self.create_tokens(user)
+        return tokens
 
