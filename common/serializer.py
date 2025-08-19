@@ -182,7 +182,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    # address = BillingAddressSerializer()
+    address = BillingAddressSerializer()
 
     class Meta:
         model = Profile
@@ -194,6 +194,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "has_marketing_access",
             "has_sales_access",
             "phone",
+            "alternate_phone",
             "date_of_joining",
             "is_active",
         )
@@ -434,12 +435,15 @@ class SetPasswordSerializer(serializers.Serializer):
         user.save()
         return user
 
+
 class FormLoginSerializer(serializers.Serializer):
     """
     Serializer for user login.
     """
+
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
+
     def validate(self, attrs):
         email = attrs.get("email")
         password = attrs.get("password")
@@ -452,6 +456,7 @@ class FormLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("User account is inactive.")
         attrs["user"] = user
         return attrs
+
     def create_tokens(self, user):
         """
         Create JWT tokens for the authenticated user.
@@ -467,8 +472,8 @@ class FormLoginSerializer(serializers.Serializer):
             "user_id": str(user.id),
             "email": user.email,
         }
+
     def save(self):
         user = self.validated_data["user"]
         tokens = self.create_tokens(user)
         return tokens
-
