@@ -4,6 +4,9 @@ from datetime import timedelta
 from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
+# Disable colorama on Windows to avoid stderr issues
+os.environ['NO_COLOR'] = '1'
+
 # JWT_AUTH = {
 #     'JWT_PAYLOAD_GET_USERNAME_HANDLER':
 #     'path.to.custom_jwt_payload_handler',
@@ -277,7 +280,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "PREPROCESSING_HOOKS": ["common.custom_openapi.preprocessing_filter_spec"],
-
+    "DISABLE_ERRORS_AND_WARNINGS": True,  # Disable warnings to avoid Windows stderr issues
 }
 
 # JWT_SETTINGS = {

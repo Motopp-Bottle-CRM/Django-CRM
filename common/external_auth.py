@@ -50,4 +50,6 @@ class CustomDualAuthentication(BaseAuthentication):
 
         # Select the appropriate user based on authentication method
         # Return the user if any authentication method succeeded
-        return jwt_user or profile
+        if jwt_user or profile:
+            return jwt_user or profile
+        return None
