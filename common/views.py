@@ -153,7 +153,6 @@ class UsersListView(APIView, LimitOffsetPagination):
 
     @extend_schema(tags=["All Users"],parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
-
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
                 {"error": True, "errors": "Permission Denied"},
