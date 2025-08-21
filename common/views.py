@@ -29,7 +29,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsNotDeletedUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
@@ -91,7 +91,7 @@ class GetTeamsAndUsersView(APIView):
 
 class UsersListView(APIView, LimitOffsetPagination):
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
     @extend_schema(tags=["User"],
         parameters=swagger_params1.organization_params,
@@ -153,6 +153,7 @@ class UsersListView(APIView, LimitOffsetPagination):
 
     @extend_schema(tags=["All Users"],parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
+
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
                 {"error": True, "errors": "Permission Denied"},
@@ -214,7 +215,8 @@ class UsersListView(APIView, LimitOffsetPagination):
 
 
 class UserDetailView(APIView):
-    permission_classes = (IsAuthenticated,)
+  #  permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
     def get_object(self, pk):
         profile = get_object_or_404(Profile, pk=pk)
@@ -222,6 +224,7 @@ class UserDetailView(APIView):
 
     @extend_schema(tags=["User"], parameters=swagger_params1.organization_params)
     def get(self, request, pk, format=None):
+
         profile_obj = self.get_object(pk)
         if (
             self.request.profile.role != "ADMIN"
@@ -348,6 +351,7 @@ class UserDetailView(APIView):
             deleted_user.set_unusable_password()
             deleted_user.email = f"deleted_{uuid.uuid4()}@example.com"
             deleted_user.is_active = False
+            deleted_user.is_deleted = True
             deleted_user.save()
 
         #disabling token - set in blacklist - to check! user will be logged out everywhere 
