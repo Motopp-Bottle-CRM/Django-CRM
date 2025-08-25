@@ -80,6 +80,6 @@ class GetProfileAndOrg(object):
                         request.profile = profile
         except Exception as e:
             print('Middleware error:', str(e))
-            # Only raise PermissionDenied for API endpoints, not for admin or other pages
-            if request.path.startswith('/api/'):
+            # Only raise PermissionDenied for API endpoints that require org; allow org discovery endpoint
+            if request.path.startswith('/api/') and not request.path.startswith('/api/org/'):
                 raise PermissionDenied()
