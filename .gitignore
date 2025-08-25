@@ -27,3 +27,5 @@ server.log
 staticfiles
 .venv
 .venv310
+venv
+venv/
