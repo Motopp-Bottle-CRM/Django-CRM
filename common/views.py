@@ -29,7 +29,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsNotDeletedUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
@@ -68,12 +68,14 @@ from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from .serializer import SetPasswordSerializer
 
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+import uuid
 
 class GetTeamsAndUsersView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["All Users"], parameters=swagger_params1.organization_params)
     def get(self, request, *args, **kwargs):
         data = {}
         teams = Teams.objects.filter(org=request.profile.org).order_by("-id")
@@ -89,14 +91,14 @@ class GetTeamsAndUsersView(APIView):
 
 class UsersListView(APIView, LimitOffsetPagination):
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
-    @extend_schema(
+    @extend_schema(tags=["User"],
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
     )
     def post(self, request, format=None):
-        print(request.profile.role, request.user.is_superuser)
+    
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
                 {"error": True, "errors": "Permission Denied"},
@@ -149,7 +151,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         status=status.HTTP_201_CREATED,
                     )
 
-    @extend_schema(parameters=swagger_params1.user_list_params)
+    @extend_schema(tags=["All Users"],parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
@@ -212,14 +214,16 @@ class UsersListView(APIView, LimitOffsetPagination):
 
 
 class UserDetailView(APIView):
-    permission_classes = (IsAuthenticated,)
+  #  permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
     def get_object(self, pk):
         profile = get_object_or_404(Profile, pk=pk)
         return profile
 
-    @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["User"], parameters=swagger_params1.organization_params)
     def get(self, request, pk, format=None):
+
         profile_obj = self.get_object(pk)
         if (
             self.request.profile.role != "ADMIN"
@@ -258,7 +262,7 @@ class UserDetailView(APIView):
         )
 
     @extend_schema(
-        tags=["users"],
+        tags=["User"],
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
     )
@@ -314,28 +318,57 @@ class UserDetailView(APIView):
             {"error": True, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
+#Nataliia sprint3
+    @extend_schema(tags=["User"], parameters=swagger_params1.organization_params)
     def delete(self, request, pk, format=None):
+        # only Admin can delete other USERs 
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            return Response(
-                {"error": True, "errors": "Permission Denied"},
+            return Response( 
+                {"error": True, "errors": "Permission Denied - you don`t have necessary access"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
         self.object = self.get_object(pk)
+
         if self.object.id == request.profile.id:
             return Response(
-                {"error": True, "errors": "Permission Denied"},
+                {"error": True, "errors": "Permission Denied - not possible to delete your own account"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        deleted_by = self.request.profile.user.email
-        send_email_user_delete.delay(
-            self.object.user.email,
-            deleted_by=deleted_by,
-        )
+
+     #     deleted_by = self.request.profile.user.email
+    #  send_email_user_delete.delay(
+      #      self.object.user.email,
+       #     deleted_by=deleted_by,
+        #)
+# Nataliia comment - here should a notification be sent to deleted user that his account 
+# has been deleted - temporary commented! - maybe to fix later
+        
+        #erasing user data (email,password..)but keeping the user in the database
+        deleted_user = User.objects.filter(id=self.object.user.id).first()
+        if deleted_user:
+            deleted_user.set_unusable_password()
+            deleted_user.email = f"deleted_{uuid.uuid4()}@example.com"
+            deleted_user.is_active = False
+            deleted_user.is_deleted = True
+            deleted_user.save()
+
+        #disabling token - set in blacklist - to check! user will be logged out everywhere 
+        tokens = OutstandingToken.objects.filter(user=deleted_user)
+        for token in tokens:
+            BlacklistedToken.objects.get_or_create(token=token)
+        
+        #deleting related address
+        deleted_address = self.object.address  
+        if deleted_address:
+            deleted_address.delete()
+        
+        #deleting profile
         self.object.delete()
+
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
+# end Nataliia sprint3
 
 # check_header not working
 class ApiHomeView(APIView):
@@ -737,7 +770,7 @@ class DocumentDetailView(APIView):
 class UserStatusView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(
+    @extend_schema(tags=["User"],
         description="User Status View",
         parameters=swagger_params1.organization_params,
         request=UserUpdateStatusSwaggerSerializer,
