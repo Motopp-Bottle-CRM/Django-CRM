@@ -4,6 +4,9 @@ from datetime import timedelta
 from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
+# Disable colorama on Windows to avoid stderr issues
+os.environ['NO_COLOR'] = '1'
+
 # JWT_AUTH = {
 #     'JWT_PAYLOAD_GET_USERNAME_HANDLER':
 #     'path.to.custom_jwt_payload_handler',
@@ -34,7 +37,7 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 DEBUG = True
 
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 INSTALLED_APPS = [
     "wagtail.contrib.forms",
@@ -286,7 +289,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "PREPROCESSING_HOOKS": ["common.custom_openapi.preprocessing_filter_spec"],
-
+    "DISABLE_ERRORS_AND_WARNINGS": True,  # Disable warnings to avoid Windows stderr issues
 }
 
 # JWT_SETTINGS = {
@@ -305,7 +308,7 @@ SWAGGER_SETTINGS = {
     },
 }
 
-CORS_ALLOW_HEADERS = default_headers + ("org",)
+CORS_ALLOW_HEADERS = default_headers + ("org", "token")
 CORS_ORIGIN_ALLOW_ALL = True
 CSRF_TRUSTED_ORIGINS = ["https://*.runcode.io", "http://*"]
 

@@ -9,7 +9,10 @@ services:
       - ./db.env
 
   web:
-    build: .
+    build: 
+      context: .
+      args:
+        APP_NAME: django-crm
     image: micropyramid/django-crm:1
     env_file: 
       - ./db.env
