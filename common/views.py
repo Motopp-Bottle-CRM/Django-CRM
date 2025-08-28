@@ -29,7 +29,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated, IsNotDeletedUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
@@ -43,6 +43,8 @@ from cases.serializer import CaseSerializer
 from common import serializer, swagger_params1
 from common.models import APISettings, Document, Org, Profile, User
 from common.serializer import *
+from common.permissions import IsNotDeletedUser
+
 
 # from common.serializer import (
 #     CreateUserSerializer,
@@ -98,7 +100,7 @@ class UsersListView(APIView, LimitOffsetPagination):
         request=UserCreateSwaggerSerializer,
     )
     def post(self, request, format=None):
-    
+
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
                 {"error": True, "errors": "Permission Denied"},
@@ -321,9 +323,9 @@ class UserDetailView(APIView):
 #Nataliia sprint3
     @extend_schema(tags=["User"], parameters=swagger_params1.organization_params)
     def delete(self, request, pk, format=None):
-        # only Admin can delete other USERs 
+        # only Admin can delete other USERs
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            return Response( 
+            return Response(
                 {"error": True, "errors": "Permission Denied - you don`t have necessary access"},
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -341,9 +343,9 @@ class UserDetailView(APIView):
       #      self.object.user.email,
        #     deleted_by=deleted_by,
         #)
-# Nataliia comment - here should a notification be sent to deleted user that his account 
+# Nataliia comment - here should a notification be sent to deleted user that his account
 # has been deleted - temporary commented! - maybe to fix later
-        
+
         #erasing user data (email,password..)but keeping the user in the database
         deleted_user = User.objects.filter(id=self.object.user.id).first()
         if deleted_user:
@@ -353,16 +355,16 @@ class UserDetailView(APIView):
             deleted_user.is_deleted = True
             deleted_user.save()
 
-        #disabling token - set in blacklist - to check! user will be logged out everywhere 
+        #disabling token - set in blacklist - to check! user will be logged out everywhere
         tokens = OutstandingToken.objects.filter(user=deleted_user)
         for token in tokens:
             BlacklistedToken.objects.get_or_create(token=token)
-        
+
         #deleting related address
-        deleted_address = self.object.address  
+        deleted_address = self.object.address
         if deleted_address:
             deleted_address.delete()
-        
+
         #deleting profile
         self.object.delete()
 
