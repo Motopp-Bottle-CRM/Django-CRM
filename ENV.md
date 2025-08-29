@@ -2,7 +2,7 @@
 
 SECRET_KEY="mco934$@)NHUYTC%6789"
 ENV_TYPE="dev"
-DOMAIN_NAME=""
+DOMAIN_NAME="localhost:8000"
 
 # AWS
 AWS_BUCKET_NAME=""
@@ -18,21 +18,21 @@ DBNAME="bottlecrm"
 DBUSER="postgres"
 DBPASSWORD="root"
 DBHOST="localhost"
-DBPORT=""
+DBPORT="5432"
 
 # Sentry
 SENTRY_DSN=""
 
 # Celery
-CELERY_BROKER_URL=""
-CELERY_RESULT_BACKEND=""
+CELERY_BROKER_URL="redis://localhost:6379"
+CELERY_RESULT_BACKEND="redis://localhost:6379"
 
 # Swagger
-SWAGGER_ROOT_URL=""
+SWAGGER_ROOT_URL="http://localhost:8000"
 
 #CACHES
 MEMCACHELOCATION=""
 
 # Email
-DEFAULT_FROM_EMAIL=""
-ADMIN_EMAIL=""
+DEFAULT_FROM_EMAIL="noreply@localhost"
+ADMIN_EMAIL="admin@localhost"
