@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from accounts.models import Profile
 from cases.models import Case
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

@@ -150,6 +150,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         role=params.get("role"),
                         address=address_obj,
                         org=request.profile.org,
+                        is_active=False,  # Profile starts as inactive until password is set
                     )
                     
                     # Create invitation
@@ -158,6 +159,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         invited_by=request.profile,
                         org=request.profile.org,
                         role=params.get("role", "USER"),
+                        expires_at=timezone.now() + timezone.timedelta(days=7),
                     )
                     
                     # Send invitation email

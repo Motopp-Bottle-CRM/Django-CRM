@@ -12,7 +12,7 @@ from django.utils.http import urlsafe_base64_encode
 from common.models import Comment, Profile, User, UserInvitation
 from common.token_generator import account_activation_token
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from common.models import Profile
 from events.models import Event
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task
