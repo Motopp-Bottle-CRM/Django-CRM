@@ -9,10 +9,10 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
-from common.models import Comment, Profile, User
+from common.models import Comment, Profile, User, UserInvitation
 from common.token_generator import account_activation_token
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task
@@ -266,6 +266,35 @@ def send_email_to_reset_password(user_email):
     if recipients:
         msg = EmailMessage(
             subject, html_content, from_email=settings.DEFAULT_FROM_EMAIL, to=recipients
+        )
+        msg.content_subtype = "html"
+        msg.send()
+
+
+@app.task
+def send_user_invitation_email(invitation_id):
+    """Send invitation email to new user"""
+    invitation = UserInvitation.objects.filter(id=invitation_id).first()
+    
+    if invitation and not invitation.is_accepted and not invitation.is_expired():
+        context = {
+            "org_name": invitation.org.name,
+            "invited_by_name": invitation.invited_by.user.email,
+            "role": invitation.get_role_display(),
+            "invitation_url": f"{settings.DOMAIN_NAME}/auth/set-password/{invitation.token}/",
+            "expires_at": invitation.expires_at.strftime("%B %d, %Y at %I:%M %p"),
+            "domain_name": settings.DOMAIN_NAME,
+        }
+        
+        recipients = [invitation.email]
+        subject = f"Invitation to Join {invitation.org.name}"
+        html_content = render_to_string("user_invitation_email.html", context=context)
+        
+        msg = EmailMessage(
+            subject,
+            html_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=recipients,
         )
         msg.content_subtype = "html"
         msg.send()

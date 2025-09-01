@@ -172,7 +172,14 @@ USE_I18N = True
 
 USE_TZ = True
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Email configuration for MailHog
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "localhost"
+EMAIL_PORT = 1025
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = ""
+EMAIL_HOST_PASSWORD = ""
 
 AUTH_USER_MODEL = "common.User"
 
@@ -193,8 +200,13 @@ ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
 
 
 # celery Tasks
-CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
-CELERY_RESULT_BACKEND = os.environ["CELERY_RESULT_BACKEND"]
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "memory://")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "cache+memory://")
+
+
 
 
 LOGGING = {

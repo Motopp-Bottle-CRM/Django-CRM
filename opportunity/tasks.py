@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from common.models import Profile
 from opportunity.models import Opportunity
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

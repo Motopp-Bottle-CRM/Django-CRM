@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 from common.models import User
 from invoices.models import Invoice, InvoiceHistory
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

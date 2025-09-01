@@ -17,6 +17,7 @@ urlpatterns = [
     path("auth/google/", views.GoogleLoginView.as_view()),
     path("auth/login/", views.FormLoginView.as_view()),
     path("auth/set-password/", views.SetPasswordView.as_view()),
+    path("auth/set-password/<str:token>/", views.SetPasswordFromInvitationView.as_view()),
     path("org/", views.OrgProfileCreateView.as_view()),
     path("profile/", views.ProfileView.as_view()),
     path("users/get-teams-and-users/", views.GetTeamsAndUsersView.as_view()),
@@ -27,5 +28,7 @@ urlpatterns = [
     path("api-settings/", views.DomainList.as_view()),
     path("api-settings/<str:pk>/", views.DomainDetailView.as_view()),
     path("user/<str:pk>/status/", views.UserStatusView.as_view()),
+    path("users/inactive/", views.InactiveUsersListView.as_view()),
+    path("user/<str:user_id>/resend-invitation/", views.ResendInvitationView.as_view()),
 
 ]
