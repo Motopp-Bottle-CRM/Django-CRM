@@ -2,7 +2,8 @@
 
 SECRET_KEY="mco934$@)NHUYTC%6789"
 ENV_TYPE="dev"
-DOMAIN_NAME="localhost:8000"
+DOMAIN_NAME="http://localhost:8000"
+FRONTEND_URL="http://localhost:3000"
 
 # AWS
 AWS_BUCKET_NAME=""

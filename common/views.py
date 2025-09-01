@@ -153,6 +153,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         org=request.profile.org,
                         is_active=False,  # Profile starts as inactive until password is set
                     )
+                    print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}")
                     
                     # Create invitation
                     invitation = UserInvitation.objects.create(
@@ -162,9 +163,17 @@ class UsersListView(APIView, LimitOffsetPagination):
                         role=params.get("role", "USER"),
                         expires_at=timezone.now() + timezone.timedelta(days=7),
                     )
+                    print(f"SUCCESS: Invitation created for user: {user.email}, token: {invitation.token}")
                     
-                    # Send invitation email
-                    send_user_invitation_email.delay(invitation.id)
+                    # Send invitation email directly (bypassing Celery to avoid issues)
+                    try:
+                        print(f"Attempting to send invitation email directly for user: {user.email}")
+                        send_user_invitation_email(invitation.id)
+                        print(f"SUCCESS: Invitation email sent directly for user: {user.email}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to send invitation email directly: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
                     
                     return Response(
                         {"error": False, "message": "User invitation sent successfully"},
@@ -1029,9 +1038,10 @@ class SetPasswordView(GenericAPIView):
 class SetPasswordFromInvitationView(APIView):
     """View to handle password setting from invitation link"""
     permission_classes = []  # No authentication required for invitation links
+    authentication_classes = []  # No authentication required for invitation links
     
     @extend_schema(
-        tags=["Authentication"],
+        tags=["api"],
         request=SetPasswordFromInvitationSerializer,
         responses={
             200: OpenApiExample(
@@ -1077,6 +1087,15 @@ class SetPasswordFromInvitationView(APIView):
             user.set_password(serializer.validated_data['password'])
             user.is_active = True
             user.save()
+            
+            # Activate the profile as well
+            try:
+                profile = Profile.objects.get(user=user, org=invitation.org)
+                profile.is_active = True
+                profile.save()
+            except Profile.DoesNotExist:
+                # Profile doesn't exist, skip
+                pass
             
             # Mark invitation as accepted
             invitation.is_accepted = True

@@ -27,6 +27,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv()
 
+# Load environment variables with defaults
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+DOMAIN_NAME = os.environ.get("DOMAIN_NAME", "http://localhost:8000")
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ["SECRET_KEY"]
 
@@ -285,6 +289,9 @@ REST_FRAMEWORK = {
         # "rest_framework.authentication.SessionAuthentication",
         # "rest_framework.authentication.BasicAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -355,4 +362,5 @@ JWT_ALGO = "HS256"
 
 
 DOMAIN_NAME = os.environ["DOMAIN_NAME"]
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 SWAGGER_ROOT_URL = os.environ["SWAGGER_ROOT_URL"]

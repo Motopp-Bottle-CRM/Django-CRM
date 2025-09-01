@@ -274,17 +274,39 @@ def send_email_to_reset_password(user_email):
 @app.task
 def send_user_invitation_email(invitation_id):
     """Send invitation email to new user"""
-    invitation = UserInvitation.objects.filter(id=invitation_id).first()
+    print(f"Starting invitation email task for invitation ID: {invitation_id}")
     
-    if invitation and not invitation.is_accepted and not invitation.is_expired():
+    try:
+        invitation = UserInvitation.objects.filter(id=invitation_id).first()
+        
+        if not invitation:
+            print(f"ERROR: Invitation not found with ID: {invitation_id}")
+            return
+        
+        if invitation.is_accepted:
+            print(f"ERROR: Invitation already accepted for: {invitation.email}")
+            return
+            
+        if invitation.is_expired():
+            print(f"ERROR: Invitation expired for: {invitation.email}")
+            return
+        
+        print(f"Preparing invitation email for: {invitation.email}")
+        
+        # Get FRONTEND_URL from settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        print(f"Frontend URL: {frontend_url}")
+        
         context = {
             "org_name": invitation.org.name,
-            "invited_by_name": invitation.invited_by.user.email,
+            "invited_by_name": invitation.invited_by.user.email if invitation.invited_by else "Administrator",
             "role": invitation.get_role_display(),
-            "invitation_url": f"{settings.DOMAIN_NAME}/auth/set-password/{invitation.token}/",
+            "invitation_url": f"{frontend_url}/set-password/{invitation.token}",
             "expires_at": invitation.expires_at.strftime("%B %d, %Y at %I:%M %p"),
-            "domain_name": settings.DOMAIN_NAME,
+            "domain_name": getattr(settings, 'DOMAIN_NAME', 'localhost'),
         }
+        
+        print(f"Invitation URL: {context['invitation_url']}")
         
         recipients = [invitation.email]
         subject = f"Invitation to Join {invitation.org.name}"
@@ -297,4 +319,25 @@ def send_user_invitation_email(invitation_id):
             to=recipients,
         )
         msg.content_subtype = "html"
+        
+        print(f"Sending email to: {invitation.email}")
+        print(f"From email: {settings.DEFAULT_FROM_EMAIL}")
+        print(f"Subject: {subject}")
+        print(f"Recipients: {recipients}")
+        
+        # Test email configuration
+        print(f"Email settings check:")
+        print(f"  DEFAULT_FROM_EMAIL: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'NOT SET')}")
+        print(f"  EMAIL_HOST: {getattr(settings, 'EMAIL_HOST', 'NOT SET')}")
+        print(f"  EMAIL_PORT: {getattr(settings, 'EMAIL_PORT', 'NOT SET')}")
+        print(f"  EMAIL_USE_TLS: {getattr(settings, 'EMAIL_USE_TLS', 'NOT SET')}")
+        
         msg.send()
+        print(f"SUCCESS: Invitation email sent successfully to: {invitation.email}")
+        
+    except Exception as e:
+        print(f"ERROR: Error sending invitation email: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        raise
