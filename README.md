@@ -11,7 +11,7 @@ This is divided into three parts
 2. Frontend UI [React CRM](https://github.com/MicroPyramid/react-crm "React CRM")
 3. Mobile app [Flutter CRM]("https://github.com/MicroPyramid/flutter-crm")
 
-## Runcode 
+## Runcode
 
  Runcode is online developer workspace. It is cloud based simple, secure and ready to code workspaces, assuring high performance & fully configurable coding environment. With runcode you can run django-crm(API) with one-click.
 
@@ -74,7 +74,7 @@ ALTER USER postgres WITH PASSWORD 'root';
 
 #### Create and activate a virtual environment.
 if you installed and configured virtualenv wrapper then use the following
-``` 
+```
 mkvirtualenv <env_name>
 workon <env_name>
 ```
@@ -97,11 +97,12 @@ pip install -r requirements.txt
 ### Docker / docker-compose
 in order to use docker, please run the next commands after cloning repo:
 ```
-docker build -t djcrm:1 -f docker/Dockerfile .
-docker-compose -f docker/docker-compose.yml up
+docker build -t djcrm:2 -f docker_version2/Dockerfile .
+
+docker-compose -f docker_version2/docker-compose.yml up
 ```
 
-**Note**: you must have docker/docker-compose installed on your host. 
+**Note**: you must have docker/docker-compose installed on your host.
 ### next steps
 
 

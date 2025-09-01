@@ -1,0 +1,40 @@
+# Use Python 3.11
+FROM python:3.11.13-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend source code
+COPY . /app
+
+# Copy entrypoint and wait-for-postgres scripts
+COPY docker_version2/entrypoint.sh /app/
+COPY docker_version2/wait-for-postgres.sh /app/
+RUN chmod +x /app/entrypoint.sh /app/wait-for-postgres.sh
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Expose Django port
+EXPOSE 8000
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
+
