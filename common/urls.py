@@ -17,7 +17,7 @@ urlpatterns = [
     path("auth/google/", views.GoogleLoginView.as_view()),
     path("auth/login/", views.FormLoginView.as_view()),
     path("auth/set-password/", views.SetPasswordView.as_view()),
-    path("auth/set-password/<str:token>/", views.SetPasswordFromInvitationView.as_view()),
+    path("set-password/<str:token>/", views.SetPasswordFromInvitationView.as_view()),
     path("org/", views.OrgProfileCreateView.as_view()),
     path("profile/", views.ProfileView.as_view()),
     path("users/get-teams-and-users/", views.GetTeamsAndUsersView.as_view()),

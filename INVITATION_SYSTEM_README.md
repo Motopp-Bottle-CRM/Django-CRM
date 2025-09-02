@@ -48,8 +48,8 @@ POST /api/user/{user_id}/resend-invitation/
 
 ### Set Password from Invitation (Public)
 ```
-GET /api/auth/set-password/{token}/
-POST /api/auth/set-password/{token}/
+GET /api/set-password/{token}/
+POST /api/set-password/{token}/
 ```
 - Public endpoint (no authentication required)
 - GET: Returns invitation details

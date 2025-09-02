@@ -7,7 +7,6 @@ import requests
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.utils import json
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password
@@ -153,6 +152,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         org=request.profile.org,
                         is_active=False,  # Profile starts as inactive until password is set
                     )
+                    print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}, org: {request.profile.org.id}")
                     
                     # Create invitation
                     invitation = UserInvitation.objects.create(
@@ -162,9 +162,17 @@ class UsersListView(APIView, LimitOffsetPagination):
                         role=params.get("role", "USER"),
                         expires_at=timezone.now() + timezone.timedelta(days=7),
                     )
+                    print(f"SUCCESS: Invitation created for user: {user.email}, token: {invitation.token}")
                     
-                    # Send invitation email
-                    send_user_invitation_email.delay(invitation.id)
+                    # Send invitation email directly (bypassing Celery to avoid issues)
+                    try:
+                        print(f"Attempting to send invitation email directly for user: {user.email}")
+                        send_user_invitation_email(invitation.id)
+                        print(f"SUCCESS: Invitation email sent directly for user: {user.email}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to send invitation email directly: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
                     
                     return Response(
                         {"error": False, "message": "User invitation sent successfully"},
@@ -948,43 +956,81 @@ class GoogleLoginView(APIView):
     post:
         Returns token of logged In user
     """
+    permission_classes = []  # Allow unauthenticated access
 
     @extend_schema(
         description="Login through Google",
         request=SocialLoginSerializer,
     )
     def post(self, request):
-        payload = {"access_token": request.data.get("token")}  # validate the token
-        r = requests.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo", params=payload
-        )
-        data = json.loads(r.text)
-        print(data)
-        if "error" in data:
-            content = {
-                "message": "wrong google token / this google token is already expired."
-            }
-            return Response(content)
-        # create user if not exist
         try:
-            user = User.objects.get(email=data["email"])
-        except User.DoesNotExist:
-            user = User()
-            user.email = data["email"]
-            user.profile_pic = data["picture"]
-            # provider random default password
-            user.password = make_password(BaseUserManager().make_random_password())
-            user.email = data["email"]
-            user.save()
-        token = RefreshToken.for_user(
-            user
-        )  # generate token without username & password
-        response = {}
-        response["username"] = user.email
-        response["access_token"] = str(token.access_token)
-        response["refresh_token"] = str(token)
-        response["user_id"] = user.id
-        return Response(response)
+            # Get token from request
+            token = request.data.get("token")
+            if not token:
+                return Response(
+                    {"error": "Token is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate the token with Google
+            payload = {"access_token": token}
+            r = requests.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo", 
+                params=payload,
+                timeout=10
+            )
+            
+            if r.status_code != 200:
+                return Response(
+                    {"error": "Invalid Google token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            data = r.json()
+            print("Google user data:", data)
+            
+            if "error" in data:
+                return Response(
+                    {"error": "Invalid or expired Google token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get or create user
+            try:
+                user = User.objects.get(email=data["email"])
+            except User.DoesNotExist:
+                user = User()
+                user.email = data["email"]
+                user.profile_pic = data.get("picture", "")
+                # Provide random default password
+                user.password = make_password(BaseUserManager().make_random_password())
+                user.save()
+            
+            # Generate JWT token
+            refresh_token = RefreshToken.for_user(user)
+            access_token = refresh_token.access_token
+            
+            response = {
+                "username": user.email,
+                "access_token": str(access_token),
+                "refresh_token": str(refresh_token),
+                "user_id": user.id,
+                "email": user.email,
+                "profile_pic": user.profile_pic
+            }
+            return Response(response, status=status.HTTP_200_OK)
+            
+        except requests.RequestException as e:
+            return Response(
+                {"error": "Failed to validate Google token"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            print(f"Google auth error: {str(e)}")
+            return Response(
+                {"error": "Authentication failed"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class FormLoginView(APIView):
@@ -993,6 +1039,8 @@ class FormLoginView(APIView):
     post:
         Returns token of logged In user
     """
+    permission_classes = []  # No authentication required for login
+    authentication_classes = []  # No authentication required for login
 
     @extend_schema(
         description="Login through Form",
@@ -1010,6 +1058,8 @@ class SetPasswordView(GenericAPIView):
     """
     Set password for user who has no password yet
     """
+    permission_classes = []  # No authentication required
+    authentication_classes = []  # No authentication required
 
     serializer_class = SetPasswordSerializer
 
@@ -1029,9 +1079,10 @@ class SetPasswordView(GenericAPIView):
 class SetPasswordFromInvitationView(APIView):
     """View to handle password setting from invitation link"""
     permission_classes = []  # No authentication required for invitation links
+    authentication_classes = []  # No authentication required for invitation links
     
     @extend_schema(
-        tags=["Authentication"],
+        tags=["api"],
         request=SetPasswordFromInvitationSerializer,
         responses={
             200: OpenApiExample(
@@ -1077,6 +1128,17 @@ class SetPasswordFromInvitationView(APIView):
             user.set_password(serializer.validated_data['password'])
             user.is_active = True
             user.save()
+            
+            # Activate the profile as well
+            try:
+                profile = Profile.objects.get(user=user, org=invitation.org)
+                profile.is_active = True
+                profile.save()
+                print(f"SUCCESS: Profile activated for user: {user.email}, profile.is_active: {profile.is_active}")
+            except Profile.DoesNotExist:
+                print(f"ERROR: Profile not found for user: {user.email}, org: {invitation.org}")
+                # Profile doesn't exist, skip
+                pass
             
             # Mark invitation as accepted
             invitation.is_accepted = True

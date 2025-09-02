@@ -18,14 +18,4 @@ account_activation_token = TokenGenerator()
 
 
 
-def send_invitation_email(user, request):
-    token = default_token_generator.make_token(user)
-    uuid = urlsafe_base64_encode(force_bytes(user.pk))
-
-    # React frontend route
-    frontend_url = f"http://localhost:3000/set-password/{uuid}/{token}/"
-
-    subject = "You are invited to Bottle CRM application"
-    message = f"Hi {user.username},\n\nClick the link below to set your password:\n{frontend_url}"
-
-    send_mail(subject, message, "noreply@bottlecrm.com", [user.email])
+# This function was removed to avoid conflicts with the main invitation system

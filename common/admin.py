@@ -16,6 +16,11 @@ class UserAdmin(admin.ModelAdmin):
     ordering = ('-is_active',)
     actions = ['create_invitation']
     
+    def save_model(self, request, obj, form, change):
+        """Override save_model to automatically create invitation for new inactive users"""
+        super().save_model(request, obj, form, change)
+        
+    
     def create_invitation(self, request, queryset):
         """Admin action to create invitations for selected users"""
         from common.models import Profile, UserInvitation
@@ -76,7 +81,78 @@ class ProfileAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'org__name')
     readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')
     ordering = ('-created_at',)
-    actions = ['activate_users', 'deactivate_users']
+    actions = ['activate_users', 'deactivate_users', 'create_invitation']
+    
+    def save_model(self, request, obj, form, change):
+        """Override save_model to automatically create invitation for new inactive profiles"""
+        super().save_model(request, obj, form, change)
+        
+        # DISABLED: This was causing conflicts with manual invitation creation
+        # If this is a new profile and it's inactive, create invitation automatically
+        # if not change and not obj.is_active and obj.user and obj.user.email and obj.org:
+        #     # Check if invitation already exists
+        #     existing_invitation = UserInvitation.objects.filter(
+        #         email=obj.user.email,
+        #         org=obj.org,
+        #         is_accepted=False
+        #     ).first()
+        #     
+        #     if not existing_invitation:
+        #         # Create new invitation
+        #         invitation = UserInvitation.objects.create(
+        #             email=obj.user.email,
+        #             invited_by=request.user.profile if hasattr(request.user, 'profile') else None,
+        #             org=obj.org,
+        #                 role=obj.role,
+        #             )
+        #             
+        #                 # Send invitation email
+        #                 send_user_invitation_email.delay(invitation.id)
+    
+    def create_invitation(self, request, queryset):
+        """Admin action to create invitations for selected inactive profiles"""
+        from common.tasks import send_user_invitation_email
+        
+        count = 0
+        for profile in queryset:
+            if not profile.is_active and profile.user and profile.user.email and profile.org:
+                # Check if invitation already exists
+                existing_invitation = UserInvitation.objects.filter(
+                    email=profile.user.email,
+                    org=profile.org,
+                    is_accepted=False
+                ).first()
+                
+                if not existing_invitation:
+                    # Create new invitation
+                    invitation = UserInvitation.objects.create(
+                        email=profile.user.email,
+                        invited_by=request.user.profile if hasattr(request.user, 'profile') else None,
+                        org=profile.org,
+                        role=profile.role,
+                    )
+                    
+                    # Send invitation email
+                    send_user_invitation_email.delay(invitation.id)
+                    count += 1
+                else:
+                    # Update existing invitation
+                    existing_invitation.token = generate_invitation_token()
+                    existing_invitation.expires_at = timezone.now() + timezone.timedelta(days=7)
+                    existing_invitation.save()
+                    
+                    # Send invitation email
+                    send_user_invitation_email.delay(existing_invitation.id)
+                    count += 1
+        
+        if count == 1:
+            message = "1 invitation was created and sent successfully."
+        else:
+            message = f"{count} invitations were created and sent successfully."
+        
+        self.message_user(request, message)
+    
+    create_invitation.short_description = "Create and send invitations for selected profiles"
     
     def activate_users(self, request, queryset):
         """Admin action to activate selected users"""

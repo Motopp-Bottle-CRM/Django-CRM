@@ -199,6 +199,28 @@ class CreateProfileSerializer(serializers.ModelSerializer):
         self.fields["role"].required = True
         self.fields["phone"].required = True
 
+    def validate_phone(self, value):
+        """Custom validation for phone numbers to accept international formats"""
+        if value:
+            # Remove any spaces and ensure it starts with +
+            cleaned_phone = value.strip()
+            if not cleaned_phone.startswith('+'):
+                # If it doesn't start with +, assume it's a local number and add +91
+                cleaned_phone = '+91' + cleaned_phone
+            return cleaned_phone
+        return value
+
+    def validate_alternate_phone(self, value):
+        """Custom validation for alternate phone numbers to accept international formats"""
+        if value:
+            # Remove any spaces and ensure it starts with +
+            cleaned_phone = value.strip()
+            if not cleaned_phone.startswith('+'):
+                # If it doesn't start with +, assume it's a local number and add +91
+                cleaned_phone = '+91' + cleaned_phone
+            return cleaned_phone
+        return value
+
 
 class UserSerializer(serializers.ModelSerializer):
 
@@ -459,6 +481,17 @@ class SetPasswordSerializer(serializers.Serializer):
         user.set_password(password)
         user.is_active = True  # Activate the user if they were inactive
         user.save()
+        
+        # Also activate the profile
+        try:
+            from common.models import Profile
+            profile = Profile.objects.get(user=user)
+            profile.is_active = True
+            profile.save()
+            print(f"SUCCESS: Profile activated for user: {user.email}, profile.is_active: {profile.is_active}")
+        except Profile.DoesNotExist:
+            print(f"WARNING: No profile found for user: {user.email}")
+        
         return user
 
 
@@ -475,11 +508,20 @@ class FormLoginSerializer(serializers.Serializer):
         password = attrs.get("password")
         if not email or not password:
             raise serializers.ValidationError("Email and password are required.")
-        user = authenticate(email=email, password=password)
+        
+        print(f"DEBUG: Attempting to authenticate user: {email}")
+        user = authenticate(username=email, password=password)
+        print(f"DEBUG: Authentication result: {user}")
+        
         if user is None:
+            print(f"DEBUG: Authentication failed for user: {email}")
             raise serializers.ValidationError("Invalid email or password.")
+        
+        print(f"DEBUG: User found: {user.email}, is_active: {user.is_active}")
         if not user.is_active:
+            print(f"DEBUG: User account is inactive: {user.email}")
             raise serializers.ValidationError("User account is inactive.")
+        
         attrs["user"] = user
         return attrs
 
