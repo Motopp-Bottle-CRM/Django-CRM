@@ -152,7 +152,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         org=request.profile.org,
                         is_active=False,  # Profile starts as inactive until password is set
                     )
-                    print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}")
+                    print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}, org: {request.profile.org.id}")
                     
                     # Create invitation
                     invitation = UserInvitation.objects.create(
@@ -1039,6 +1039,8 @@ class FormLoginView(APIView):
     post:
         Returns token of logged In user
     """
+    permission_classes = []  # No authentication required for login
+    authentication_classes = []  # No authentication required for login
 
     @extend_schema(
         description="Login through Form",
@@ -1056,6 +1058,8 @@ class SetPasswordView(GenericAPIView):
     """
     Set password for user who has no password yet
     """
+    permission_classes = []  # No authentication required
+    authentication_classes = []  # No authentication required
 
     serializer_class = SetPasswordSerializer
 
@@ -1130,7 +1134,9 @@ class SetPasswordFromInvitationView(APIView):
                 profile = Profile.objects.get(user=user, org=invitation.org)
                 profile.is_active = True
                 profile.save()
+                print(f"SUCCESS: Profile activated for user: {user.email}, profile.is_active: {profile.is_active}")
             except Profile.DoesNotExist:
+                print(f"ERROR: Profile not found for user: {user.email}, org: {invitation.org}")
                 # Profile doesn't exist, skip
                 pass
             

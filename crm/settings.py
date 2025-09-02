@@ -187,6 +187,12 @@ EMAIL_HOST_PASSWORD = ""
 
 AUTH_USER_MODEL = "common.User"
 
+# Custom authentication backend for email-based login
+AUTHENTICATION_BACKENDS = [
+    'common.authentication.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]

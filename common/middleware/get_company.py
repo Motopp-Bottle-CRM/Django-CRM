@@ -45,8 +45,12 @@ class GetProfileAndOrg(object):
         return self.get_response(request)
 
     def process_request(self, request):
-        # Skip authentication only for set-password path
-        if request.path == '/api/set-password/':
+        # Skip authentication for auth endpoints and set-password paths
+        if (request.path == '/api/set-password/' or 
+            request.path.startswith('/api/set-password/') or
+            request.path == '/api/auth/set-password/' or
+            request.path == '/api/auth/login/' or
+            request.path.startswith('/api/auth/')):
             return
             
         try :
