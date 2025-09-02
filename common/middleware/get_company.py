@@ -4,6 +4,7 @@ from django.contrib.auth import logout
 from django.core.exceptions import ValidationError,PermissionDenied
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed
 from crum import get_current_user
 from django.utils.functional import SimpleLazyObject
 
@@ -44,15 +45,21 @@ class GetProfileAndOrg(object):
         return self.get_response(request)
 
     def process_request(self, request):
+        # Skip authentication only for set-password path
+        if request.path == '/api/set-password/':
+            return
+            
         try :
             request.profile = None
             user_id = None
             # here I am getting the the jwt token passing in header
             if request.headers.get("Authorization"):
                 token1 = request.headers.get("Authorization")
-                token = token1.split(" ")[1]  # getting the token value
-                decoded = jwt.decode(token, (settings.SECRET_KEY), algorithms=[settings.JWT_ALGO])
-                user_id = decoded['user_id']
+                token_parts = token1.split(" ")
+                if len(token_parts) >= 2 and token_parts[0].lower() == "bearer":
+                    token = token_parts[1]  # getting the token value
+                    decoded = jwt.decode(token, (settings.SECRET_KEY), algorithms=[settings.JWT_ALGO])
+                    user_id = decoded['user_id']
             api_key = request.headers.get('Token')  # Get API key from request query params
             if api_key:
                 try:
@@ -70,6 +77,9 @@ class GetProfileAndOrg(object):
                     )
                     if profile:
                         request.profile = profile
-        except :
-             print('test1')
-             raise PermissionDenied()
+        except Exception as e:
+            # Only raise PermissionDenied for paths that require authentication
+            # Skip authentication errors for auth endpoints
+            if not request.path.startswith('/api/auth/'):
+                print(f'Authentication error: {e}')
+                raise PermissionDenied()

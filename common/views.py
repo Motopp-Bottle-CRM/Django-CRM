@@ -7,7 +7,6 @@ import requests
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.utils import json
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password
@@ -957,43 +956,81 @@ class GoogleLoginView(APIView):
     post:
         Returns token of logged In user
     """
+    permission_classes = []  # Allow unauthenticated access
 
     @extend_schema(
         description="Login through Google",
         request=SocialLoginSerializer,
     )
     def post(self, request):
-        payload = {"access_token": request.data.get("token")}  # validate the token
-        r = requests.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo", params=payload
-        )
-        data = json.loads(r.text)
-        print(data)
-        if "error" in data:
-            content = {
-                "message": "wrong google token / this google token is already expired."
-            }
-            return Response(content)
-        # create user if not exist
         try:
-            user = User.objects.get(email=data["email"])
-        except User.DoesNotExist:
-            user = User()
-            user.email = data["email"]
-            user.profile_pic = data["picture"]
-            # provider random default password
-            user.password = make_password(BaseUserManager().make_random_password())
-            user.email = data["email"]
-            user.save()
-        token = RefreshToken.for_user(
-            user
-        )  # generate token without username & password
-        response = {}
-        response["username"] = user.email
-        response["access_token"] = str(token.access_token)
-        response["refresh_token"] = str(token)
-        response["user_id"] = user.id
-        return Response(response)
+            # Get token from request
+            token = request.data.get("token")
+            if not token:
+                return Response(
+                    {"error": "Token is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate the token with Google
+            payload = {"access_token": token}
+            r = requests.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo", 
+                params=payload,
+                timeout=10
+            )
+            
+            if r.status_code != 200:
+                return Response(
+                    {"error": "Invalid Google token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            data = r.json()
+            print("Google user data:", data)
+            
+            if "error" in data:
+                return Response(
+                    {"error": "Invalid or expired Google token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get or create user
+            try:
+                user = User.objects.get(email=data["email"])
+            except User.DoesNotExist:
+                user = User()
+                user.email = data["email"]
+                user.profile_pic = data.get("picture", "")
+                # Provide random default password
+                user.password = make_password(BaseUserManager().make_random_password())
+                user.save()
+            
+            # Generate JWT token
+            refresh_token = RefreshToken.for_user(user)
+            access_token = refresh_token.access_token
+            
+            response = {
+                "username": user.email,
+                "access_token": str(access_token),
+                "refresh_token": str(refresh_token),
+                "user_id": user.id,
+                "email": user.email,
+                "profile_pic": user.profile_pic
+            }
+            return Response(response, status=status.HTTP_200_OK)
+            
+        except requests.RequestException as e:
+            return Response(
+                {"error": "Failed to validate Google token"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            print(f"Google auth error: {str(e)}")
+            return Response(
+                {"error": "Authentication failed"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class FormLoginView(APIView):
