@@ -193,8 +193,8 @@ class Profile(BaseModel):
     org = models.ForeignKey(
         Org, null=True, on_delete=models.CASCADE, blank=True, related_name="user_org"
     )
-    phone = PhoneNumberField(null=True, unique=True)
-    alternate_phone = PhoneNumberField(null=True,blank=True)
+    phone = models.CharField(max_length=20, null=True, unique=True)
+    alternate_phone = models.CharField(max_length=20, null=True, blank=True)
     address = models.ForeignKey(
         Address,
         related_name="adress_users",

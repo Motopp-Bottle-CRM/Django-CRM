@@ -199,6 +199,28 @@ class CreateProfileSerializer(serializers.ModelSerializer):
         self.fields["role"].required = True
         self.fields["phone"].required = True
 
+    def validate_phone(self, value):
+        """Custom validation for phone numbers to accept international formats"""
+        if value:
+            # Remove any spaces and ensure it starts with +
+            cleaned_phone = value.strip()
+            if not cleaned_phone.startswith('+'):
+                # If it doesn't start with +, assume it's a local number and add +91
+                cleaned_phone = '+91' + cleaned_phone
+            return cleaned_phone
+        return value
+
+    def validate_alternate_phone(self, value):
+        """Custom validation for alternate phone numbers to accept international formats"""
+        if value:
+            # Remove any spaces and ensure it starts with +
+            cleaned_phone = value.strip()
+            if not cleaned_phone.startswith('+'):
+                # If it doesn't start with +, assume it's a local number and add +91
+                cleaned_phone = '+91' + cleaned_phone
+            return cleaned_phone
+        return value
+
 
 class UserSerializer(serializers.ModelSerializer):
 
