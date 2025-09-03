@@ -117,6 +117,7 @@ class BillingAddressSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         account_view = kwargs.pop("account", False)
+        user_creation = kwargs.pop("user_creation", False)
 
         super().__init__(*args, **kwargs)
 
@@ -127,6 +128,14 @@ class BillingAddressSerializer(serializers.ModelSerializer):
             self.fields["state"].required = True
             self.fields["postcode"].required = True
             self.fields["country"].required = True
+        elif user_creation:
+            # For user creation, make address fields optional
+            self.fields["address_line"].required = False
+            self.fields["street"].required = False
+            self.fields["city"].required = False
+            self.fields["state"].required = False
+            self.fields["postcode"].required = False
+            self.fields["country"].required = False
 
 
 class CreateUserSerializer(serializers.ModelSerializer):
@@ -150,12 +159,23 @@ class CreateUserSerializer(serializers.ModelSerializer):
                     return email
                 raise serializers.ValidationError("Email already exists")
             return email
-        if not Profile.objects.filter(user__email=email.lower(), org=self.org).exists():
-            return email
-        raise serializers.ValidationError("Given Email id already exists")
+        
+        # For new users, check if User already exists (not Profile)
+        if User.objects.filter(email=email.lower()).exists():
+            raise serializers.ValidationError("User with this email already exists")
+        
+        return email.lower()
 
 
 class CreateProfileSerializer(serializers.ModelSerializer):
+    # Add address fields as optional
+    address_line = serializers.CharField(required=False, allow_blank=True)
+    street = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(required=False, allow_blank=True)
+    state = serializers.CharField(required=False, allow_blank=True)
+    pincode = serializers.CharField(required=False, allow_blank=True)
+    country = serializers.CharField(required=False, allow_blank=True)
+    
     class Meta:
         model = Profile
         fields = (
@@ -165,6 +185,12 @@ class CreateProfileSerializer(serializers.ModelSerializer):
             "has_sales_access",
             "has_marketing_access",
             "is_organization_admin",
+            "address_line",
+            "street",
+            "city",
+            "state",
+            "pincode",
+            "country",
         )
 
     def __init__(self, *args, **kwargs):
@@ -172,6 +198,28 @@ class CreateProfileSerializer(serializers.ModelSerializer):
         self.fields["alternate_phone"].required = False
         self.fields["role"].required = True
         self.fields["phone"].required = True
+
+    def validate_phone(self, value):
+        """Custom validation for phone numbers to accept international formats"""
+        if value:
+            # Remove any spaces and ensure it starts with +
+            cleaned_phone = value.strip()
+            if not cleaned_phone.startswith('+'):
+                # If it doesn't start with +, assume it's a local number and add +91
+                cleaned_phone = '+91' + cleaned_phone
+            return cleaned_phone
+        return value
+
+    def validate_alternate_phone(self, value):
+        """Custom validation for alternate phone numbers to accept international formats"""
+        if value:
+            # Remove any spaces and ensure it starts with +
+            cleaned_phone = value.strip()
+            if not cleaned_phone.startswith('+'):
+                # If it doesn't start with +, assume it's a local number and add +91
+                cleaned_phone = '+91' + cleaned_phone
+            return cleaned_phone
+        return value
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -433,6 +481,17 @@ class SetPasswordSerializer(serializers.Serializer):
         user.set_password(password)
         user.is_active = True  # Activate the user if they were inactive
         user.save()
+        
+        # Also activate the profile
+        try:
+            from common.models import Profile
+            profile = Profile.objects.get(user=user)
+            profile.is_active = True
+            profile.save()
+            print(f"SUCCESS: Profile activated for user: {user.email}, profile.is_active: {profile.is_active}")
+        except Profile.DoesNotExist:
+            print(f"WARNING: No profile found for user: {user.email}")
+        
         return user
 
 
@@ -449,11 +508,20 @@ class FormLoginSerializer(serializers.Serializer):
         password = attrs.get("password")
         if not email or not password:
             raise serializers.ValidationError("Email and password are required.")
-        user = authenticate(email=email, password=password)
+        
+        print(f"DEBUG: Attempting to authenticate user: {email}")
+        user = authenticate(username=email, password=password)
+        print(f"DEBUG: Authentication result: {user}")
+        
         if user is None:
+            print(f"DEBUG: Authentication failed for user: {email}")
             raise serializers.ValidationError("Invalid email or password.")
+        
+        print(f"DEBUG: User found: {user.email}, is_active: {user.is_active}")
         if not user.is_active:
+            print(f"DEBUG: User account is inactive: {user.email}")
             raise serializers.ValidationError("User account is inactive.")
+        
         attrs["user"] = user
         return attrs
 
@@ -477,3 +545,26 @@ class FormLoginSerializer(serializers.Serializer):
         user = self.validated_data["user"]
         tokens = self.create_tokens(user)
         return tokens
+
+
+class SetPasswordFromInvitationSerializer(serializers.Serializer):
+    """Serializer for setting password from invitation"""
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+    
+    def validate(self, attrs):
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError("Passwords don't match.")
+        return attrs
+    
+    def validate_password(self, value):
+        # Basic password validation
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        if not re.search(r'[A-Z]', value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        if not re.search(r'[a-z]', value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        if not re.search(r'\d', value):
+            raise serializers.ValidationError("Password must contain at least one digit.")
+        return value

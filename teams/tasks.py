@@ -3,7 +3,7 @@ from celery import Celery
 from common.models import Profile
 from teams.models import Teams
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

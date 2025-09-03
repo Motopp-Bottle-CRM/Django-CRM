@@ -22,7 +22,12 @@ class CustomDualAuthentication(BaseAuthentication):
         profile = None
 
         # Check JWT authentication
-        jwt_token = request.headers.get('Authorization', '').split(' ')[1] if 'Authorization' in request.headers else None
+        auth_header = request.headers.get('Authorization', '')
+        jwt_token = None
+        if auth_header:
+            auth_parts = auth_header.split(' ')
+            if len(auth_parts) >= 2 and auth_parts[0].lower() == 'bearer':
+                jwt_token = auth_parts[1]
         if jwt_token:
             is_valid, jwt_payload = verify_jwt_token(jwt_token)
             if is_valid:

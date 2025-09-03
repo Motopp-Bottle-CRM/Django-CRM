@@ -7,7 +7,6 @@ import requests
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.utils import json
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password
@@ -29,7 +28,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated, IsNotDeletedUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
@@ -41,8 +40,10 @@ from cases.serializer import CaseSerializer
 
 ##from common.custom_auth import JSONWebTokenAuthentication
 from common import serializer, swagger_params1
-from common.models import APISettings, Document, Org, Profile, User
+from common.models import APISettings, Document, Org, Profile, User, UserInvitation
 from common.serializer import *
+from common.tasks import send_user_invitation_email
+from common.permissions import IsNotDeletedUser
 
 # from common.serializer import (
 #     CreateUserSerializer,
@@ -75,7 +76,7 @@ class GetTeamsAndUsersView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(tags=["All Users"], parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
     def get(self, request, *args, **kwargs):
         data = {}
         teams = Teams.objects.filter(org=request.profile.org).order_by("-id")
@@ -93,12 +94,12 @@ class UsersListView(APIView, LimitOffsetPagination):
 
     permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
-    @extend_schema(tags=["User"],
+    @extend_schema(tags=["Users"],
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
     )
     def post(self, request, format=None):
-    
+
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
                 {"error": True, "errors": "Permission Denied"},
@@ -126,32 +127,59 @@ class UsersListView(APIView, LimitOffsetPagination):
                     )
                 if address_serializer.is_valid():
                     address_obj = address_serializer.save()
+                    
+                    # Check if user already exists
+                    existing_user = User.objects.filter(email=params.get("email")).first()
+                    if existing_user:
+                        return Response(
+                            {"error": True, "errors": {"email": "User with this email already exists"}},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    
+                    # Create user without password (inactive)
                     user = user_serializer.save(
-                        is_active=True,
+                        is_active=False,  # User will be activated after setting password
                     )
                     user.email = user.email
                     user.save()
-                    # if params.get("password"):
-                    #     user.set_password(params.get("password"))
-                    #     user.save()
+                    
+                    # Create profile
                     profile = Profile.objects.create(
                         user=user,
                         date_of_joining=timezone.now(),
                         role=params.get("role"),
                         address=address_obj,
                         org=request.profile.org,
+                        is_active=False,  # Profile starts as inactive until password is set
                     )
-
-                    # send_email_to_new_user.delay(
-                    #     profile.id,
-                    #     request.profile.org.id,
-                    # )
+                    print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}, org: {request.profile.org.id}")
+                    
+                    # Create invitation
+                    invitation = UserInvitation.objects.create(
+                        email=user.email,
+                        invited_by=request.profile,
+                        org=request.profile.org,
+                        role=params.get("role", "USER"),
+                        expires_at=timezone.now() + timezone.timedelta(days=7),
+                    )
+                    print(f"SUCCESS: Invitation created for user: {user.email}, token: {invitation.token}")
+                    
+                    # Send invitation email directly (bypassing Celery to avoid issues)
+                    try:
+                        print(f"Attempting to send invitation email directly for user: {user.email}")
+                        send_user_invitation_email(invitation.id)
+                        print(f"SUCCESS: Invitation email sent directly for user: {user.email}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to send invitation email directly: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                    
                     return Response(
-                        {"error": False, "message": "User Created Successfully"},
+                        {"error": False, "message": "User invitation sent successfully"},
                         status=status.HTTP_201_CREATED,
                     )
 
-    @extend_schema(tags=["All Users"],parameters=swagger_params1.user_list_params)
+    @extend_schema(tags=["Users"], parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
@@ -221,7 +249,7 @@ class UserDetailView(APIView):
         profile = get_object_or_404(Profile, pk=pk)
         return profile
 
-    @extend_schema(tags=["User"], parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
     def get(self, request, pk, format=None):
 
         profile_obj = self.get_object(pk)
@@ -262,7 +290,7 @@ class UserDetailView(APIView):
         )
 
     @extend_schema(
-        tags=["User"],
+        tags=["Users"],
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
     )
@@ -319,11 +347,11 @@ class UserDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 #Nataliia sprint3
-    @extend_schema(tags=["User"], parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
     def delete(self, request, pk, format=None):
-        # only Admin can delete other USERs 
+        # only Admin can delete other USERs
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            return Response( 
+            return Response(
                 {"error": True, "errors": "Permission Denied - you don`t have necessary access"},
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -341,9 +369,9 @@ class UserDetailView(APIView):
       #      self.object.user.email,
        #     deleted_by=deleted_by,
         #)
-# Nataliia comment - here should a notification be sent to deleted user that his account 
+# Nataliia comment - here should a notification be sent to deleted user that his account
 # has been deleted - temporary commented! - maybe to fix later
-        
+
         #erasing user data (email,password..)but keeping the user in the database
         deleted_user = User.objects.filter(id=self.object.user.id).first()
         if deleted_user:
@@ -353,16 +381,16 @@ class UserDetailView(APIView):
             deleted_user.is_deleted = True
             deleted_user.save()
 
-        #disabling token - set in blacklist - to check! user will be logged out everywhere 
+        #disabling token - set in blacklist - to check! user will be logged out everywhere
         tokens = OutstandingToken.objects.filter(user=deleted_user)
         for token in tokens:
             BlacklistedToken.objects.get_or_create(token=token)
-        
+
         #deleting related address
-        deleted_address = self.object.address  
+        deleted_address = self.object.address
         if deleted_address:
             deleted_address.delete()
-        
+
         #deleting profile
         self.object.delete()
 
@@ -770,7 +798,7 @@ class DocumentDetailView(APIView):
 class UserStatusView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(tags=["User"],
+    @extend_schema(tags=["Users"],
         description="User Status View",
         parameters=swagger_params1.organization_params,
         request=UserUpdateStatusSwaggerSerializer,
@@ -928,43 +956,81 @@ class GoogleLoginView(APIView):
     post:
         Returns token of logged In user
     """
+    permission_classes = []  # Allow unauthenticated access
 
     @extend_schema(
         description="Login through Google",
         request=SocialLoginSerializer,
     )
     def post(self, request):
-        payload = {"access_token": request.data.get("token")}  # validate the token
-        r = requests.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo", params=payload
-        )
-        data = json.loads(r.text)
-        print(data)
-        if "error" in data:
-            content = {
-                "message": "wrong google token / this google token is already expired."
-            }
-            return Response(content)
-        # create user if not exist
         try:
-            user = User.objects.get(email=data["email"])
-        except User.DoesNotExist:
-            user = User()
-            user.email = data["email"]
-            user.profile_pic = data["picture"]
-            # provider random default password
-            user.password = make_password(BaseUserManager().make_random_password())
-            user.email = data["email"]
-            user.save()
-        token = RefreshToken.for_user(
-            user
-        )  # generate token without username & password
-        response = {}
-        response["username"] = user.email
-        response["access_token"] = str(token.access_token)
-        response["refresh_token"] = str(token)
-        response["user_id"] = user.id
-        return Response(response)
+            # Get token from request
+            token = request.data.get("token")
+            if not token:
+                return Response(
+                    {"error": "Token is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate the token with Google
+            payload = {"access_token": token}
+            r = requests.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo", 
+                params=payload,
+                timeout=10
+            )
+            
+            if r.status_code != 200:
+                return Response(
+                    {"error": "Invalid Google token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            data = r.json()
+            print("Google user data:", data)
+            
+            if "error" in data:
+                return Response(
+                    {"error": "Invalid or expired Google token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get or create user
+            try:
+                user = User.objects.get(email=data["email"])
+            except User.DoesNotExist:
+                user = User()
+                user.email = data["email"]
+                user.profile_pic = data.get("picture", "")
+                # Provide random default password
+                user.password = make_password(BaseUserManager().make_random_password())
+                user.save()
+            
+            # Generate JWT token
+            refresh_token = RefreshToken.for_user(user)
+            access_token = refresh_token.access_token
+            
+            response = {
+                "username": user.email,
+                "access_token": str(access_token),
+                "refresh_token": str(refresh_token),
+                "user_id": user.id,
+                "email": user.email,
+                "profile_pic": user.profile_pic
+            }
+            return Response(response, status=status.HTTP_200_OK)
+            
+        except requests.RequestException as e:
+            return Response(
+                {"error": "Failed to validate Google token"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            print(f"Google auth error: {str(e)}")
+            return Response(
+                {"error": "Authentication failed"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class FormLoginView(APIView):
@@ -973,6 +1039,8 @@ class FormLoginView(APIView):
     post:
         Returns token of logged In user
     """
+    permission_classes = []  # No authentication required for login
+    authentication_classes = []  # No authentication required for login
 
     @extend_schema(
         description="Login through Form",
@@ -990,6 +1058,8 @@ class SetPasswordView(GenericAPIView):
     """
     Set password for user who has no password yet
     """
+    permission_classes = []  # No authentication required
+    authentication_classes = []  # No authentication required
 
     serializer_class = SetPasswordSerializer
 
@@ -1004,3 +1074,249 @@ class SetPasswordView(GenericAPIView):
         return Response(
             {"message": "Password set successfully"}, status=status.HTTP_200_OK
         )
+
+
+class SetPasswordFromInvitationView(APIView):
+    """View to handle password setting from invitation link"""
+    permission_classes = []  # No authentication required for invitation links
+    authentication_classes = []  # No authentication required for invitation links
+    
+    @extend_schema(
+        tags=["api"],
+        request=SetPasswordFromInvitationSerializer,
+        responses={
+            200: OpenApiExample(
+                "Success",
+                value={"error": False, "message": "Password set successfully"},
+            ),
+            400: OpenApiExample(
+                "Error",
+                value={"error": True, "errors": "Invalid or expired invitation"},
+            ),
+        },
+    )
+    def post(self, request, token):
+        """Set password using invitation token"""
+        try:
+            invitation = UserInvitation.objects.get(token=token)
+            
+            # Check if invitation is valid
+            if invitation.is_expired():
+                return Response(
+                    {"error": True, "errors": "Invitation has expired"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            if invitation.is_accepted:
+                return Response(
+                    {"error": True, "errors": "Invitation has already been used"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Get the user
+            user = User.objects.get(email=invitation.email)
+            
+            # Validate password
+            serializer = SetPasswordFromInvitationSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {"error": True, "errors": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Set password and activate user
+            user.set_password(serializer.validated_data['password'])
+            user.is_active = True
+            user.save()
+            
+            # Activate the profile as well
+            try:
+                profile = Profile.objects.get(user=user, org=invitation.org)
+                profile.is_active = True
+                profile.save()
+                print(f"SUCCESS: Profile activated for user: {user.email}, profile.is_active: {profile.is_active}")
+            except Profile.DoesNotExist:
+                print(f"ERROR: Profile not found for user: {user.email}, org: {invitation.org}")
+                # Profile doesn't exist, skip
+                pass
+            
+            # Mark invitation as accepted
+            invitation.is_accepted = True
+            invitation.accepted_at = timezone.now()
+            invitation.save()
+            
+            return Response(
+                {"error": False, "message": "Password set successfully. You can now log in."},
+                status=status.HTTP_200_OK,
+            )
+            
+        except UserInvitation.DoesNotExist:
+            return Response(
+                {"error": True, "errors": "Invalid invitation link"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": True, "errors": "User not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    
+    def get(self, request, token):
+        """Get invitation details for frontend"""
+        try:
+            invitation = UserInvitation.objects.get(token=token)
+            
+            if invitation.is_expired():
+                return Response(
+                    {"error": True, "errors": "Invitation has expired"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            if invitation.is_accepted:
+                return Response(
+                    {"error": True, "errors": "Invitation has already been used"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            return Response({
+                "error": False,
+                "data": {
+                    "email": invitation.email,
+                    "org_name": invitation.org.name,
+                    "role": invitation.get_role_display(),
+                    "invited_by": invitation.invited_by.user.email,
+                    "expires_at": invitation.expires_at,
+                }
+            })
+            
+        except UserInvitation.DoesNotExist:
+            return Response(
+                {"error": True, "errors": "Invalid invitation link"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class InactiveUsersListView(APIView, LimitOffsetPagination):
+    """View to list inactive users and their invitation status"""
+    permission_classes = (IsAuthenticated, IsNotDeletedUser)
+    
+    @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
+    def get(self, request, format=None):
+        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "Permission Denied"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        # Get inactive users from the organization
+        queryset = Profile.objects.filter(
+            org=request.profile.org,
+            is_active=False
+        ).order_by("-created_at")
+        
+        # Get pending invitations
+        pending_invitations = UserInvitation.objects.filter(
+            org=request.profile.org,
+            is_accepted=False
+        ).order_by("-created_at")
+        
+        # Paginate inactive users
+        results_inactive_users = self.paginate_queryset(
+            queryset.distinct(), self.request, view=self
+        )
+        inactive_users = ProfileSerializer(results_inactive_users, many=True).data
+        
+        # Add invitation status to each user
+        for user_data in inactive_users:
+            user_email = user_data.get('user', {}).get('email')
+            if user_email:
+                invitation = pending_invitations.filter(email=user_email).first()
+                if invitation:
+                    user_data['invitation_status'] = {
+                        'token': invitation.token,
+                        'invited_by': invitation.invited_by.user.email,
+                        'invited_at': invitation.created_at,
+                        'expires_at': invitation.expires_at,
+                        'is_expired': invitation.is_expired(),
+                        'role': invitation.get_role_display(),
+                    }
+                else:
+                    user_data['invitation_status'] = None
+        
+        context = {
+            "inactive_users": inactive_users,
+            "inactive_users_count": queryset.count(),
+            "pending_invitations_count": pending_invitations.count(),
+            "expired_invitations_count": pending_invitations.filter(
+                expires_at__lt=timezone.now()
+            ).count(),
+        }
+        
+        return Response(context)
+
+
+class ResendInvitationView(APIView):
+    """View to resend invitation email"""
+    permission_classes = (IsAuthenticated, IsNotDeletedUser)
+    
+    @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
+    def post(self, request, user_id):
+        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "Permission Denied"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        try:
+            profile = Profile.objects.get(id=user_id, org=request.profile.org)
+            user = profile.user
+            
+            if user.is_active:
+                return Response(
+                    {"error": True, "errors": "User is already active"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Check if there's an existing invitation
+            existing_invitation = UserInvitation.objects.filter(
+                email=user.email,
+                org=request.profile.org,
+                is_accepted=False
+            ).first()
+            
+            if existing_invitation and not existing_invitation.is_expired():
+                return Response(
+                    {"error": True, "errors": "Active invitation already exists for this user"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Create new invitation or update existing one
+            if existing_invitation:
+                # Update existing invitation
+                existing_invitation.token = generate_invitation_token()
+                existing_invitation.expires_at = timezone.now() + timezone.timedelta(days=7)
+                existing_invitation.invited_by = request.profile
+                existing_invitation.save()
+                invitation = existing_invitation
+            else:
+                # Create new invitation
+                invitation = UserInvitation.objects.create(
+                    email=user.email,
+                    invited_by=request.profile,
+                    org=request.profile.org,
+                    role=profile.role,
+                )
+            
+            # Send invitation email
+            send_user_invitation_email.delay(invitation.id)
+            
+            return Response(
+                {"error": False, "message": "Invitation sent successfully"},
+                status=status.HTTP_200_OK,
+            )
+            
+        except Profile.DoesNotExist:
+            return Response(
+                {"error": True, "errors": "User not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
