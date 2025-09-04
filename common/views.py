@@ -142,7 +142,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                     )
                     user.email = user.email
                     user.save()
-                    
+                  
                     # Create profile
                     profile = Profile.objects.create(
                         user=user,
@@ -150,6 +150,8 @@ class UsersListView(APIView, LimitOffsetPagination):
                         role=params.get("role"),
                         address=address_obj,
                         org=request.profile.org,
+                        phone=params.get("phone"),
+                        alternate_phone=params.get("alternate_phone"),
                         is_active=False,  # Profile starts as inactive until password is set
                     )
                     print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}, org: {request.profile.org.id}")
