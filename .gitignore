@@ -26,3 +26,6 @@ server.log
 .vscode
 staticfiles
 .venv
+.venv310
+venv/
+venv

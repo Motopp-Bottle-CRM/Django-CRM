@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from common.models import Profile
 from contacts.models import Contact
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

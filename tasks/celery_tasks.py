@@ -9,7 +9,7 @@ from common.models import User
 from contacts.models import Contact
 from tasks.models import Task
 
-app = Celery("redis://")
+app = Celery()
 
 
 @app.task

@@ -10,7 +10,7 @@ from django.template.loader import render_to_string
 from common.models import Org, Profile
 from leads.models import Lead
 
-app = Celery("redis://")
+app = Celery()
 
 
 def get_rendered_html(template_name, context={}):

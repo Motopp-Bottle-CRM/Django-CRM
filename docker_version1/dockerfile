@@ -22,8 +22,8 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 RUN python3 -m pip install --no-cache-dir redis
 
 COPY . /app
-COPY docker/entrypoint.sh /app
-COPY docker/wait-for-postgres.sh /app
+COPY docker_version1/entrypoint.sh /app
+COPY docker_version1/wait-for-postgres.sh /app
 
 
 RUN chmod +x entrypoint.sh 

@@ -43,6 +43,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     key_expires = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(_('staff status'),default=False)
+    is_deleted = models.BooleanField(default=False)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -192,8 +193,8 @@ class Profile(BaseModel):
     org = models.ForeignKey(
         Org, null=True, on_delete=models.CASCADE, blank=True, related_name="user_org"
     )
-    phone = PhoneNumberField(null=True, unique=True)
-    alternate_phone = PhoneNumberField(null=True,blank=True)
+    phone = models.CharField(max_length=20, null=True, unique=True)
+    alternate_phone = models.CharField(max_length=20, null=True, blank=True)
     address = models.ForeignKey(
         Address,
         related_name="adress_users",
@@ -548,6 +549,10 @@ def generate_key():
     return binascii.hexlify(os.urandom(8)).decode()
 
 
+def generate_invitation_token():
+    return str(uuid.uuid4())
+
+
 class APISettings(BaseModel):
     title = models.TextField()
     apikey = models.CharField(max_length=16, blank=True)
@@ -585,4 +590,42 @@ class APISettings(BaseModel):
     def save(self, *args, **kwargs):
         if not self.apikey or self.apikey is None or self.apikey == "":
             self.apikey = generate_key()
+        super().save(*args, **kwargs)
+
+
+class UserInvitation(BaseModel):
+    """Model to track user invitations"""
+    email = models.EmailField()
+    token = models.CharField(max_length=255, default=generate_invitation_token, unique=True)
+    invited_by = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name="sent_invitations"
+    )
+    org = models.ForeignKey(
+        Org,
+        on_delete=models.CASCADE,
+        related_name="user_invitations"
+    )
+    is_accepted = models.BooleanField(default=False)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+    role = models.CharField(max_length=50, choices=ROLES, default="USER")
+    
+    class Meta:
+        verbose_name = "User Invitation"
+        verbose_name_plural = "User Invitations"
+        db_table = "user_invitations"
+        ordering = ("-created_at",)
+    
+    def __str__(self):
+        return f"Invitation for {self.email}"
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            # Set expiration to 7 days from now
+            self.expires_at = timezone.now() + timezone.timedelta(days=7)
         super().save(*args, **kwargs)

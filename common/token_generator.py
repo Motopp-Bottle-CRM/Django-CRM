@@ -15,3 +15,7 @@ class TokenGenerator(PasswordResetTokenGenerator):
 
 
 account_activation_token = TokenGenerator()
+
+
+
+# This function was removed to avoid conflicts with the main invitation system
