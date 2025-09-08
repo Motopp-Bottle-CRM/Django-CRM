@@ -38,6 +38,7 @@ from accounts.serializer import AccountSerializer
 from cases.models import Case
 from cases.serializer import CaseSerializer
 
+
 ##from common.custom_auth import JSONWebTokenAuthentication
 from common import serializer, swagger_params1
 from common.models import APISettings, Document, Org, Profile, User, UserInvitation
@@ -127,7 +128,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                     )
                 if address_serializer.is_valid():
                     address_obj = address_serializer.save()
-                    
+
                     # Check if user already exists
                     existing_user = User.objects.filter(email=params.get("email")).first()
                     if existing_user:
@@ -135,14 +136,14 @@ class UsersListView(APIView, LimitOffsetPagination):
                             {"error": True, "errors": {"email": "User with this email already exists"}},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
-                    
+
                     # Create user without password (inactive)
                     user = user_serializer.save(
                         is_active=False,  # User will be activated after setting password
                     )
                     user.email = user.email
                     user.save()
-                  
+
                     # Create profile
                     profile = Profile.objects.create(
                         user=user,
@@ -155,7 +156,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         is_active=False,  # Profile starts as inactive until password is set
                     )
                     print(f"SUCCESS: Profile created for user: {user.email}, is_active: {profile.is_active}, org: {request.profile.org.id}")
-                    
+
                     # Create invitation
                     invitation = UserInvitation.objects.create(
                         email=user.email,
@@ -165,7 +166,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         expires_at=timezone.now() + timezone.timedelta(days=7),
                     )
                     print(f"SUCCESS: Invitation created for user: {user.email}, token: {invitation.token}")
-                    
+
                     # Send invitation email directly (bypassing Celery to avoid issues)
                     try:
                         print(f"Attempting to send invitation email directly for user: {user.email}")
@@ -175,7 +176,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         print(f"ERROR: Failed to send invitation email directly: {str(e)}")
                         import traceback
                         traceback.print_exc()
-                    
+
                     return Response(
                         {"error": False, "message": "User invitation sent successfully"},
                         status=status.HTTP_201_CREATED,
@@ -514,6 +515,64 @@ class ProfileView(APIView):
         context = {}
         context["user_obj"] = ProfileSerializer(self.request.profile).data
         return Response(context, status=status.HTTP_200_OK)
+
+
+    @extend_schema(
+        parameters=swagger_params1.organization_params,
+        request=UserCreateSwaggerSerializer,
+    )
+    def put(self, request, *args, **kwargs):
+        params = request.data.copy()
+
+        # Map frontend "pincode" to backend "postcode"
+        if "pincode" in params:
+            params["postcode"] = params.pop("pincode")
+
+        # Fetch profile of the logged-in user
+        try:
+            profile = Profile.objects.get(user=request.user)
+        except Profile.DoesNotExist:
+            return Response(
+                {"error": True, "message": "Profile not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get or create address
+        address_obj = profile.address
+
+        # Initialize serializers
+        serializer = CreateUserSerializer(data=params, instance=profile.user, org=profile.org)
+        if address_obj:
+            address_serializer = BillingAddressSerializer(data=params, instance=address_obj)
+        else:
+            address_serializer = BillingAddressSerializer(data=params)
+
+        profile_serializer = CreateProfileSerializer(data=params, instance=profile)
+
+        errors = {}
+        if not serializer.is_valid():
+            errors["contact_errors"] = serializer.errors
+        if not address_serializer.is_valid():
+            errors["address_errors"] = address_serializer.errors
+        if not profile_serializer.is_valid():
+            errors["profile_errors"] = profile_serializer.errors
+
+        if errors:
+            errors["error"] = True
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save data after all serializers are valid
+        address_obj = address_serializer.save()
+        user = serializer.save()
+        user.save()
+        profile = profile_serializer.save()
+
+        return Response(
+            {"error": False, "message": "Profile updated successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+
 
 
 class DocumentListView(APIView, LimitOffsetPagination):
@@ -970,33 +1029,33 @@ class GoogleLoginView(APIView):
             token = request.data.get("token")
             if not token:
                 return Response(
-                    {"error": "Token is required"}, 
+                    {"error": "Token is required"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Validate the token with Google
             payload = {"access_token": token}
             r = requests.get(
-                "https://www.googleapis.com/oauth2/v2/userinfo", 
+                "https://www.googleapis.com/oauth2/v2/userinfo",
                 params=payload,
                 timeout=10
             )
-            
+
             if r.status_code != 200:
                 return Response(
-                    {"error": "Invalid Google token"}, 
+                    {"error": "Invalid Google token"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-                
+
             data = r.json()
             print("Google user data:", data)
-            
+
             if "error" in data:
                 return Response(
-                    {"error": "Invalid or expired Google token"}, 
+                    {"error": "Invalid or expired Google token"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Get or create user
             try:
                 user = User.objects.get(email=data["email"])
@@ -1007,11 +1066,11 @@ class GoogleLoginView(APIView):
                 # Provide random default password
                 user.password = make_password(BaseUserManager().make_random_password())
                 user.save()
-            
+
             # Generate JWT token
             refresh_token = RefreshToken.for_user(user)
             access_token = refresh_token.access_token
-            
+
             response = {
                 "username": user.email,
                 "access_token": str(access_token),
@@ -1021,16 +1080,16 @@ class GoogleLoginView(APIView):
                 "profile_pic": user.profile_pic
             }
             return Response(response, status=status.HTTP_200_OK)
-            
+
         except requests.RequestException as e:
             return Response(
-                {"error": "Failed to validate Google token"}, 
+                {"error": "Failed to validate Google token"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         except Exception as e:
             print(f"Google auth error: {str(e)}")
             return Response(
-                {"error": "Authentication failed"}, 
+                {"error": "Authentication failed"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1082,7 +1141,7 @@ class SetPasswordFromInvitationView(APIView):
     """View to handle password setting from invitation link"""
     permission_classes = []  # No authentication required for invitation links
     authentication_classes = []  # No authentication required for invitation links
-    
+
     @extend_schema(
         tags=["api"],
         request=SetPasswordFromInvitationSerializer,
@@ -1101,23 +1160,23 @@ class SetPasswordFromInvitationView(APIView):
         """Set password using invitation token"""
         try:
             invitation = UserInvitation.objects.get(token=token)
-            
+
             # Check if invitation is valid
             if invitation.is_expired():
                 return Response(
                     {"error": True, "errors": "Invitation has expired"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             if invitation.is_accepted:
                 return Response(
                     {"error": True, "errors": "Invitation has already been used"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             # Get the user
             user = User.objects.get(email=invitation.email)
-            
+
             # Validate password
             serializer = SetPasswordFromInvitationSerializer(data=request.data)
             if not serializer.is_valid():
@@ -1125,12 +1184,12 @@ class SetPasswordFromInvitationView(APIView):
                     {"error": True, "errors": serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             # Set password and activate user
             user.set_password(serializer.validated_data['password'])
             user.is_active = True
             user.save()
-            
+
             # Activate the profile as well
             try:
                 profile = Profile.objects.get(user=user, org=invitation.org)
@@ -1141,17 +1200,17 @@ class SetPasswordFromInvitationView(APIView):
                 print(f"ERROR: Profile not found for user: {user.email}, org: {invitation.org}")
                 # Profile doesn't exist, skip
                 pass
-            
+
             # Mark invitation as accepted
             invitation.is_accepted = True
             invitation.accepted_at = timezone.now()
             invitation.save()
-            
+
             return Response(
                 {"error": False, "message": "Password set successfully. You can now log in."},
                 status=status.HTTP_200_OK,
             )
-            
+
         except UserInvitation.DoesNotExist:
             return Response(
                 {"error": True, "errors": "Invalid invitation link"},
@@ -1162,24 +1221,24 @@ class SetPasswordFromInvitationView(APIView):
                 {"error": True, "errors": "User not found"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-    
+
     def get(self, request, token):
         """Get invitation details for frontend"""
         try:
             invitation = UserInvitation.objects.get(token=token)
-            
+
             if invitation.is_expired():
                 return Response(
                     {"error": True, "errors": "Invitation has expired"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             if invitation.is_accepted:
                 return Response(
                     {"error": True, "errors": "Invitation has already been used"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             return Response({
                 "error": False,
                 "data": {
@@ -1190,7 +1249,7 @@ class SetPasswordFromInvitationView(APIView):
                     "expires_at": invitation.expires_at,
                 }
             })
-            
+
         except UserInvitation.DoesNotExist:
             return Response(
                 {"error": True, "errors": "Invalid invitation link"},
@@ -1201,7 +1260,7 @@ class SetPasswordFromInvitationView(APIView):
 class InactiveUsersListView(APIView, LimitOffsetPagination):
     """View to list inactive users and their invitation status"""
     permission_classes = (IsAuthenticated, IsNotDeletedUser)
-    
+
     @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
@@ -1209,25 +1268,25 @@ class InactiveUsersListView(APIView, LimitOffsetPagination):
                 {"error": True, "errors": "Permission Denied"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        
+
         # Get inactive users from the organization
         queryset = Profile.objects.filter(
             org=request.profile.org,
             is_active=False
         ).order_by("-created_at")
-        
+
         # Get pending invitations
         pending_invitations = UserInvitation.objects.filter(
             org=request.profile.org,
             is_accepted=False
         ).order_by("-created_at")
-        
+
         # Paginate inactive users
         results_inactive_users = self.paginate_queryset(
             queryset.distinct(), self.request, view=self
         )
         inactive_users = ProfileSerializer(results_inactive_users, many=True).data
-        
+
         # Add invitation status to each user
         for user_data in inactive_users:
             user_email = user_data.get('user', {}).get('email')
@@ -1244,7 +1303,7 @@ class InactiveUsersListView(APIView, LimitOffsetPagination):
                     }
                 else:
                     user_data['invitation_status'] = None
-        
+
         context = {
             "inactive_users": inactive_users,
             "inactive_users_count": queryset.count(),
@@ -1253,14 +1312,14 @@ class InactiveUsersListView(APIView, LimitOffsetPagination):
                 expires_at__lt=timezone.now()
             ).count(),
         }
-        
+
         return Response(context)
 
 
 class ResendInvitationView(APIView):
     """View to resend invitation email"""
     permission_classes = (IsAuthenticated, IsNotDeletedUser)
-    
+
     @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
     def post(self, request, user_id):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
@@ -1268,30 +1327,30 @@ class ResendInvitationView(APIView):
                 {"error": True, "errors": "Permission Denied"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        
+
         try:
             profile = Profile.objects.get(id=user_id, org=request.profile.org)
             user = profile.user
-            
+
             if user.is_active:
                 return Response(
                     {"error": True, "errors": "User is already active"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             # Check if there's an existing invitation
             existing_invitation = UserInvitation.objects.filter(
                 email=user.email,
                 org=request.profile.org,
                 is_accepted=False
             ).first()
-            
+
             if existing_invitation and not existing_invitation.is_expired():
                 return Response(
                     {"error": True, "errors": "Active invitation already exists for this user"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             # Create new invitation or update existing one
             if existing_invitation:
                 # Update existing invitation
@@ -1308,15 +1367,15 @@ class ResendInvitationView(APIView):
                     org=request.profile.org,
                     role=profile.role,
                 )
-            
+
             # Send invitation email
             send_user_invitation_email.delay(invitation.id)
-            
+
             return Response(
                 {"error": False, "message": "Invitation sent successfully"},
                 status=status.HTTP_200_OK,
             )
-            
+
         except Profile.DoesNotExist:
             return Response(
                 {"error": True, "errors": "User not found"},
