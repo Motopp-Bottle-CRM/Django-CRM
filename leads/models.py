@@ -35,6 +35,7 @@ class Lead(BaseModel):
     title = models.CharField(
         pgettext_lazy("Treatment Pronouns for the customer", "Title"), max_length=64
     )
+    job_title = models.CharField(_("Job Title"), max_length=255, null=True, blank=True)
     first_name = models.CharField(_("First name"), null=True, max_length=255)
     last_name = models.CharField(_("Last name"), null=True, max_length=255)
     email = models.EmailField(null=True, blank=True)

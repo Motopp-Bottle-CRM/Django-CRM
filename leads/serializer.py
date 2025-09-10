@@ -49,6 +49,7 @@ class LeadSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "title",
+            "job_title",
             "first_name",
             "last_name",
             "phone",
@@ -97,6 +98,8 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         self.fields["first_name"].required = False
         self.fields["last_name"].required = False
         self.fields["title"].required = True
+        self.fields["contacts"].required = False
+        self.fields["lead_attachment"].required = False
         self.org = request_obj.profile.org
 
         if self.instance:
@@ -142,6 +145,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "last_name",
             "account_name",
             "title",
+            "job_title",
             "phone",
             "email",
             "status",
@@ -149,7 +153,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "website",
             "description",
             "address_line",
-            # "contacts",
+            "contacts",
             "street",
             "city",
             "state",
@@ -163,25 +167,29 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "organization",
             "probability",
             "close_date",
-            # "lead_attachment",
+            "lead_attachment",
         )
 
 class LeadCreateSwaggerSerializer(serializers.ModelSerializer):
     company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
+    contacts = serializers.ListField(required=False, allow_empty=True)
+    lead_attachment = serializers.ListField(required=False, allow_empty=True)
     
     class Meta:
         model = Lead
-        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+        fields = ["title","job_title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
                 "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
                 "country","tags","company","probability","industry","linkedin_id"]
 
 
 class LeadEditSwaggerSerializer(serializers.ModelSerializer):
     company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
+    contacts = serializers.ListField(required=False, allow_empty=True)
+    lead_attachment = serializers.ListField(required=False, allow_empty=True)
     
     class Meta:
         model = Lead
-        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+        fields = ["title","job_title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
                 "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
                 "country","tags","company","probability","industry","linkedin_id"]
 

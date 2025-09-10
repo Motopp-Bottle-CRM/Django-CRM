@@ -4769,6 +4769,10 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        job_title:
+          type: string
+          nullable: true
+          maxLength: 255
         first_name:
           type: string
           nullable: true
@@ -4794,9 +4798,7 @@ components:
           maxLength: 254
         lead_attachment:
           type: array
-          items:
-            type: string
-            format: uuid
+          items: {}
         opportunity_amount:
           type: string
           format: decimal
@@ -4821,9 +4823,7 @@ components:
             format: uuid
         contacts:
           type: array
-          items:
-            type: string
-            format: uuid
+          items: {}
         status:
           nullable: true
           title: Status of Lead
@@ -4894,8 +4894,6 @@ components:
           maxLength: 100
       required:
       - assigned_to
-      - contacts
-      - lead_attachment
       - teams
       - title
     LeadDetailEditSwaggerRequest:
@@ -4917,6 +4915,10 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        job_title:
+          type: string
+          nullable: true
+          maxLength: 255
         first_name:
           type: string
           nullable: true
@@ -4942,9 +4944,7 @@ components:
           maxLength: 254
         lead_attachment:
           type: array
-          items:
-            type: string
-            format: uuid
+          items: {}
         opportunity_amount:
           type: string
           format: decimal
@@ -4969,9 +4969,7 @@ components:
             format: uuid
         contacts:
           type: array
-          items:
-            type: string
-            format: uuid
+          items: {}
         status:
           nullable: true
           title: Status of Lead
@@ -5042,8 +5040,6 @@ components:
           maxLength: 100
       required:
       - assigned_to
-      - contacts
-      - lead_attachment
       - teams
       - title
     LeadSourceEnum:
