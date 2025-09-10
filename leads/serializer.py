@@ -76,7 +76,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "tags",
             "created_from_site",
             "teams",
-            "skype_ID",
+            "linkedin_id",
             "industry",
             "company",
             "organization",
@@ -157,7 +157,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "opportunity_amount",
             "country",
             "org",
-            "skype_ID",
+            "linkedin_id",
             "industry",
             "company",
             "organization",
@@ -167,11 +167,23 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         )
 
 class LeadCreateSwaggerSerializer(serializers.ModelSerializer):
+    company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
+    
     class Meta:
         model = Lead
         fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
                 "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
-                "country","tags","company","probability","industry","skype_ID"]
+                "country","tags","company","probability","industry","linkedin_id"]
+
+
+class LeadEditSwaggerSerializer(serializers.ModelSerializer):
+    company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
+    
+    class Meta:
+        model = Lead
+        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+                "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
+                "country","tags","company","probability","industry","linkedin_id"]
 
 
 class CreateLeadFromSiteSwaggerSerializer(serializers.Serializer):

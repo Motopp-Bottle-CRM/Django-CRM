@@ -77,6 +77,7 @@ class Lead(BaseModel):
         related_name="lead_company",
     )
     skype_ID = models.CharField(max_length=100, null=True, blank=True)
+    linkedin_id = models.CharField(max_length=100, null=True, blank=True)
     industry = models.CharField(
         _("Industry Type"), max_length=255, choices=INDCHOICES, blank=True, null=True
     )
@@ -91,7 +92,7 @@ class Lead(BaseModel):
         ordering = ("-created_at",)
 
     def __str__(self):
-        return f"{self.title}"
+        return f"{self.account_name}" if self.account_name else f"{self.title}"
 
     def get_complete_address(self):
         return return_complete_address(self)
