@@ -22,7 +22,7 @@ from common.utils import CASE_TYPE, PRIORITY_CHOICE, STATUS_CHOICE
 from contacts.models import Contact
 from contacts.serializer import ContactSerializer
 from teams.models import Teams
-
+from common.decorator import role_required
 
 class CaseListView(APIView, LimitOffsetPagination):
     #authentication_classes = (CustomDualAuthentication,)
@@ -85,6 +85,7 @@ class CaseListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.cases_list_get_params
     )
+    @role_required("Cases")
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
@@ -92,6 +93,7 @@ class CaseListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params,request=CaseCreateSwaggerSerializer
     )
+    @role_required("Cases")
     def post(self, request, *args, **kwargs):
         params = request.data
         serializer = CaseCreateSerializer(data=params, request_obj=request)
@@ -158,6 +160,7 @@ class CaseDetailView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params,request=CaseCreateSwaggerSerializer
     )
+    @role_required("Cases")
     def put(self, request, pk, format=None):
         params = request.data
         cases_object = self.get_object(pk=pk)
@@ -243,6 +246,7 @@ class CaseDetailView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params
     )
+    @role_required("Cases")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if self.object.org != request.profile.org:
@@ -268,6 +272,7 @@ class CaseDetailView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params
     )
+    @role_required("Cases")
     def get(self, request, pk, format=None):
         self.cases = self.get_object(pk=pk)
         if self.cases.org != request.profile.org:
@@ -335,6 +340,7 @@ class CaseDetailView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params,request=CaseDetailEditSwaggerSerializer
     )
+    @role_required("Cases")
     def post(self, request, pk, **kwargs):
         params = request.data
         self.cases_obj = Case.objects.get(pk=pk)
@@ -396,6 +402,7 @@ class CaseCommentView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params,request=CaseCommentEditSwaggerSerializer
     )
+    @role_required("Cases")
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -427,6 +434,7 @@ class CaseCommentView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params
     )
+    @role_required("Cases")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -456,6 +464,7 @@ class CaseAttachmentView(APIView):
     @extend_schema(
         tags=["Cases"], parameters=swagger_params1.organization_params
     )
+    @role_required("Cases")
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (

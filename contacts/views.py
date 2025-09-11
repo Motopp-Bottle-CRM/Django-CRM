@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.decorator import role_required
 from common.models import Attachments, Comment, Profile
 from common.serializer import (
     AttachmentsSerializer,
@@ -24,6 +25,7 @@ from contacts.serializer import *
 from contacts.tasks import send_email_to_assigned_user
 from tasks.serializer import TaskSerializer
 from teams.models import Teams
+from common.decorator import role_required
 
 
 class ContactsListView(APIView, LimitOffsetPagination):
@@ -79,15 +81,17 @@ class ContactsListView(APIView, LimitOffsetPagination):
         return context
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.contact_list_get_params
+        tags=["Contacts"], parameters=swagger_params1.contact_list_get_params
     )
+    @role_required("Contacts")
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params,request=CreateContactSerializer
+        tags=["Contacts"], parameters=swagger_params1.organization_params,request=CreateContactSerializer
     )
+    @role_required("Contacts")
     def post(self, request, *args, **kwargs):
         params = request.data
         contact_serializer = CreateContactSerializer(data=params, request_obj=request)
@@ -148,8 +152,9 @@ class ContactDetailView(APIView):
         return get_object_or_404(Contact, pk=pk)
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.contact_create_post_params,request=CreateContactSerializer
+        tags=["Contacts"], parameters=swagger_params1.contact_create_post_params,request=CreateContactSerializer
     )
+    @role_required("Contacts")
     def put(self, request, pk, format=None):
         data = request.data
         contact_obj = self.get_object(pk=pk)
@@ -238,8 +243,9 @@ class ContactDetailView(APIView):
             )
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params
+        tags=["Contacts"], parameters=swagger_params1.organization_params
     )
+    @role_required("Contacts")
     def get(self, request, pk, format=None):
         context = {}
         contact_obj = self.get_object(pk)
@@ -307,8 +313,9 @@ class ContactDetailView(APIView):
         return Response(context)
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params
+        tags=["Contacts"], parameters=swagger_params1.organization_params
     )
+    @role_required("Contacts")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if self.object.org != request.profile.org:
@@ -337,8 +344,9 @@ class ContactDetailView(APIView):
         )
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params,request=ContactDetailEditSwaggerSerializer
+        tags=["Contacts"], parameters=swagger_params1.organization_params,request=ContactDetailEditSwaggerSerializer
     )
+    @role_required("Contacts")  
     def post(self, request, pk, **kwargs):
         params = request.data
         context = {}
@@ -397,8 +405,9 @@ class ContactCommentView(APIView):
         return self.model.objects.get(pk=pk)
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params,request=ContactCommentEditSwaggerSerializer
+        tags=["Contacts"], parameters=swagger_params1.organization_params,request=ContactCommentEditSwaggerSerializer
     )
+    @role_required("Contacts")
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -427,8 +436,9 @@ class ContactCommentView(APIView):
         )
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params
+        tags=["Contacts"], parameters=swagger_params1.organization_params
     )
+    @role_required("Contacts")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -456,8 +466,9 @@ class ContactAttachmentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        tags=["contacts"], parameters=swagger_params1.organization_params
+        tags=["Contacts"], parameters=swagger_params1.organization_params
     )
+    @role_required("Contacts")
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
