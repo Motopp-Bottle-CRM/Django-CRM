@@ -100,7 +100,19 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         self.fields["title"].required = True
         self.fields["contacts"].required = False
         self.fields["lead_attachment"].required = False
-        self.org = request_obj.profile.org
+        
+        # Handle case where profile might be None
+        if request_obj and hasattr(request_obj, 'profile') and request_obj.profile:
+            self.org = request_obj.profile.org
+        else:
+            # Fallback: try to get org from the request data
+            if hasattr(request_obj, 'data') and 'org' in request_obj.data:
+                self.org = request_obj.data['org']
+            else:
+                # Security: Don't use fallback org - raise error instead
+                raise serializers.ValidationError(
+                    "Authentication failed: Unable to determine organization context. Please login again."
+                )
 
         if self.instance:
             if self.instance.created_from_site:
