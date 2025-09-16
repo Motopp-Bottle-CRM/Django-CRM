@@ -20,6 +20,8 @@ from teams.models import Teams
 
 class Company(BaseModel):
     name = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+    telephone = models.CharField(max_length=20, blank=True, null=True)
     org = models.ForeignKey(Org, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
