@@ -264,14 +264,15 @@ class ProfileSerializer(serializers.ModelSerializer):
 class AttachmentsSerializer(serializers.ModelSerializer):
     file_path = serializers.SerializerMethodField()
 
+
     def get_file_path(self, obj):
         if obj.attachment:
             return obj.attachment.url
-        None
+        return None
 
     class Meta:
         model = Attachments
-        fields = ["id", "created_by", "file_name", "created_at", "file_path"]
+        fields = ["id", "attachment","file_name","file_path"]
 
 
 class DocumentSerializer(serializers.ModelSerializer):
