@@ -1066,6 +1066,8 @@ class GoogleLoginView(APIView):
             # Get or create user
             try:
                 user = User.objects.get(email=data["email"])
+                profile = Profile.objects.get(user_id=user.id)
+                role = profile.role
             except User.DoesNotExist:
                 user = User()
                 user.email = data["email"]
@@ -1073,6 +1075,7 @@ class GoogleLoginView(APIView):
                 # Provide random default password
                 user.password = make_password(BaseUserManager().make_random_password())
                 user.save()
+                role=''
 
             # Generate JWT token
             refresh_token = RefreshToken.for_user(user)
@@ -1084,6 +1087,7 @@ class GoogleLoginView(APIView):
                 "refresh_token": str(refresh_token),
                 "user_id": user.id,
                 "email": user.email,
+                "role": role,
                 "profile_pic": user.profile_pic
             }
             return Response(response, status=status.HTTP_200_OK)

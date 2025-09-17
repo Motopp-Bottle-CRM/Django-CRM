@@ -534,11 +534,19 @@ class FormLoginSerializer(serializers.Serializer):
 
         access["user_id"] = str(user.id)
         access["email"] = user.email
+        try:
+            profile = Profile.objects.get(user_id=user.id)
+            role = profile.role
+        except Profile.DoesNotExist:
+            role = None
+        print(f" profile ", profile)
+        print(" aaaaaaaaaaa ")
         return {
             "refresh": str(refresh),
             "access": str(access),
             "user_id": str(user.id),
             "email": user.email,
+            "role": role,   # 
         }
 
     def save(self):
