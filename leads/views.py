@@ -17,6 +17,8 @@ from common.serializer import (
     LeadCommentSerializer,
     ProfileSerializer,
 )
+
+from rest_framework.parsers import MultiPartParser, FormParser
 from .forms import LeadListForm
 from .models import Company,Lead
 from common.utils import COUNTRIES, INDCHOICES, LEAD_SOURCE, LEAD_STATUS
@@ -56,7 +58,7 @@ class LeadListView(APIView, LimitOffsetPagination):
             self.model.objects.filter(org=self.request.profile.org)
             .exclude(status="converted")
             .select_related("created_by")
-            .prefetch_related( 
+            .prefetch_related(
                 "tags",
                 "assigned_to",
             )
@@ -653,6 +655,46 @@ class LeadCommentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+    @extend_schema(
+    tags=["Leads"],
+    parameters=swagger_params1.organization_params,
+    request=LeadCommentEditSwaggerSerializer,
+    responses=LeadCommentSerializer
+)
+    def post(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        lead_id = kwargs.get("pk") or data.get("lead")
+        if not lead_id:
+            return Response({"error": "Lead ID is required"}, status=400)
+
+        try:
+            lead_obj = Lead.objects.get(pk=lead_id)
+        except Lead.DoesNotExist:
+            return Response({"error": "Lead not found"}, status=404)
+
+        serializer = LeadCommentSerializer(data=data)
+        if serializer.is_valid():
+        # Pass the profile instance directly here
+            serializer.save(commented_by=request.profile, lead=lead_obj)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        responses=LeadCommentSerializer(many=True)
+    )
+    def get(self, request, pk, *args, **kwargs):
+        """Get all comments for a lead"""
+        try:
+            lead = Lead.objects.get(pk=pk)
+        except Lead.DoesNotExist:
+            return Response({"error": "Lead not found"}, status=404)
+
+        comments = Comment.objects.filter(lead=lead).order_by("-commented_on")
+        serializer = LeadCommentSerializer(comments, many=True)
+        return Response(serializer.data, status=200)
 
 
 class LeadAttachmentView(APIView):
@@ -681,6 +723,37 @@ class LeadAttachmentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+    parser_classes = [MultiPartParser, FormParser]
+    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
+    def post(self, request, pk, *args, **kwargs):
+        """
+        Upload a new attachment for a lead
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        data = {
+        "attachment": request.data.get("attachment"),
+        "file_name": request.data.get("file_name")
+    }
+
+
+        serializer = AttachmentsSerializer(data=data, context={"lead": lead, "request": request})
+        if serializer.is_valid():
+            serializer.save(lead=lead)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        responses=AttachmentsSerializer(many=True),)
+    def get(self, request, pk, *args, **kwargs):
+        """
+        Get all attachments for a lead
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        attachments = lead.lead_attachment.all().order_by("-created_at")
+        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 class CreateLeadFromSite(APIView):
@@ -797,10 +870,10 @@ class CompaniesView(APIView):
             )
 
 class CompanyDetail(APIView):
-   
+
     permission_classes = (IsAuthenticated,)
 
-    
+
     def get_object(self, pk):
         try:
             return Company.objects.get(
@@ -842,4 +915,3 @@ class CompanyDetail(APIView):
                 {"error": False, 'message': 'Deleted successfully'},
                 status=status.HTTP_200_OK,
             )
- 
