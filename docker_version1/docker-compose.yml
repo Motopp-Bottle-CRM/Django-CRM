@@ -25,7 +25,7 @@ services:
       - POSTGRES_USER=crm
       - POSTGRES_PASSWORD=crm
     ports:
-      - 5432:5432
+      - 5433:5432
     volumes:
       - /var/run/postgresql/:/var/run/postgresql
     networks:
