@@ -98,6 +98,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         self.fields["first_name"].required = False
         self.fields["last_name"].required = False
         self.fields["title"].required = True
+        self.fields["company"].required = True
         self.fields["contacts"].required = False
         self.fields["lead_attachment"].required = False
         

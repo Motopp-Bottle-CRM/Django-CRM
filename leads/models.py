@@ -72,9 +72,9 @@ class Lead(BaseModel):
     )
     company = models.ForeignKey(
         Company,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
+        null=False,
+        blank=False,
         related_name="lead_company",
     )
     skype_ID = models.CharField(max_length=100, null=True, blank=True)
