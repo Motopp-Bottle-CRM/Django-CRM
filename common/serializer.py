@@ -266,8 +266,11 @@ class AttachmentsSerializer(serializers.ModelSerializer):
 
 
     def get_file_path(self, obj):
-        if obj.attachment:
-            return obj.attachment.url
+        request = self.context.get("request")
+        if obj.attachment and request:
+            return request.build_absolute_uri(obj.attachment.url)
+        elif obj.attachment:
+            return obj.attachment.url  # fallback if no request in context
         return None
 
     class Meta:

@@ -727,7 +727,7 @@ class LeadAttachmentView(APIView):
     }
 
 
-        serializer = AttachmentsSerializer(data=data, context={"lead": lead})
+        serializer = AttachmentsSerializer(data=data, context={"lead": lead, "request": request})
         if serializer.is_valid():
             serializer.save(lead=lead)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -742,7 +742,7 @@ class LeadAttachmentView(APIView):
         """
         lead = get_object_or_404(Lead, pk=pk)
         attachments = lead.lead_attachment.all().order_by("-created_at")
-        serializer = AttachmentsSerializer(attachments, many=True)
+        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
