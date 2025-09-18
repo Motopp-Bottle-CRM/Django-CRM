@@ -17,6 +17,8 @@ from common.serializer import (
     LeadCommentSerializer,
     ProfileSerializer,
 )
+
+from rest_framework.parsers import MultiPartParser, FormParser
 from .forms import LeadListForm
 from .models import Company,Lead
 from common.utils import COUNTRIES, INDCHOICES, LEAD_SOURCE, LEAD_STATUS
@@ -712,6 +714,37 @@ class LeadAttachmentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+    parser_classes = [MultiPartParser, FormParser]
+    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
+    def post(self, request, pk, *args, **kwargs):
+        """
+        Upload a new attachment for a lead
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        data = {
+        "attachment": request.data.get("attachment"),
+        "file_name": request.data.get("file_name")
+    }
+
+
+        serializer = AttachmentsSerializer(data=data, context={"lead": lead, "request": request})
+        if serializer.is_valid():
+            serializer.save(lead=lead)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        responses=AttachmentsSerializer(many=True),)
+    def get(self, request, pk, *args, **kwargs):
+        """
+        Get all attachments for a lead
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        attachments = lead.lead_attachment.all().order_by("-created_at")
+        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 class CreateLeadFromSite(APIView):
