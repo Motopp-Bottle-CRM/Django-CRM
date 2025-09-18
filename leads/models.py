@@ -35,6 +35,7 @@ class Lead(BaseModel):
     title = models.CharField(
         pgettext_lazy("Treatment Pronouns for the customer", "Title"), max_length=64
     )
+    job_title = models.CharField(_("Job Title"), max_length=255, null=True, blank=True)
     first_name = models.CharField(_("First name"), null=True, max_length=255)
     last_name = models.CharField(_("Last name"), null=True, max_length=255)
     email = models.EmailField(null=True, blank=True)
@@ -77,6 +78,7 @@ class Lead(BaseModel):
         related_name="lead_company",
     )
     skype_ID = models.CharField(max_length=100, null=True, blank=True)
+    linkedin_id = models.CharField(max_length=100, null=True, blank=True)
     industry = models.CharField(
         _("Industry Type"), max_length=255, choices=INDCHOICES, blank=True, null=True
     )
@@ -91,7 +93,7 @@ class Lead(BaseModel):
         ordering = ("-created_at",)
 
     def __str__(self):
-        return f"{self.title}"
+        return f"{self.account_name}" if self.account_name else f"{self.title}"
 
     def get_complete_address(self):
         return return_complete_address(self)
