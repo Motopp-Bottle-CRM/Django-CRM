@@ -877,6 +877,16 @@ class UserStatusView(APIView):
         profiles = Profile.objects.filter(org=request.profile.org)
         profile = profiles.get(id=pk)
 
+        # Prevent self-deactivation/activation
+        if profile.id == request.profile.id:
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You cannot change your own account status",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if params.get("status"):
             user_status = params.get("status")
             if user_status == "Active":

@@ -89,11 +89,38 @@ class GetProfileAndOrg(object):
                         profile = Profile.objects.filter(user_id=user_id, is_active=True).first()
                         if profile:
                             request.profile = profile
+                        else:
+                            # Emergency fallback: Check if user is superuser, staff, or has ADMIN role
+                            # This prevents admin lockout scenarios
+                            user = User.objects.get(id=user_id)
+                            if user.is_superuser or user.is_staff:
+                                # Get any profile for this user (even inactive) for superuser/staff
+                                profile = Profile.objects.filter(user_id=user_id).first()
+                                if profile:
+                                    request.profile = profile
+                            else:
+                                # Check if user has any ADMIN role profile (even inactive)
+                                admin_profile = Profile.objects.filter(user_id=user_id, role="ADMIN").first()
+                                if admin_profile:
+                                    request.profile = admin_profile
                 else:
                     # No org header, try to get any active profile
                     profile = Profile.objects.filter(user_id=user_id, is_active=True).first()
                     if profile:
                         request.profile = profile
+                    else:
+                        # Emergency fallback: Check if user is superuser, staff, or has ADMIN role
+                        user = User.objects.get(id=user_id)
+                        if user.is_superuser or user.is_staff:
+                            # Get any profile for this user (even inactive) for superuser/staff
+                            profile = Profile.objects.filter(user_id=user_id).first()
+                            if profile:
+                                request.profile = profile
+                        else:
+                            # Check if user has any ADMIN role profile (even inactive)
+                            admin_profile = Profile.objects.filter(user_id=user_id, role="ADMIN").first()
+                            if admin_profile:
+                                request.profile = admin_profile
         except jwt.ExpiredSignatureError as e:
             # Handle expired JWT tokens more gracefully
             if not request.path.startswith('/api/auth/'):
