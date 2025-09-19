@@ -159,6 +159,7 @@ class LeadListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Leads"],description="Leads Create", parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer
     )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
         print('test')
@@ -662,6 +663,7 @@ class LeadCommentView(APIView):
     request=LeadCommentEditSwaggerSerializer,
     responses=LeadCommentSerializer
 )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
         data = request.data.copy()
 
@@ -686,6 +688,7 @@ class LeadCommentView(APIView):
         parameters=swagger_params1.organization_params,
         responses=LeadCommentSerializer(many=True)
     )
+    @role_required("Leads")
     def get(self, request, pk, *args, **kwargs):
         """Get all comments for a lead"""
         try:
@@ -726,6 +729,7 @@ class LeadAttachmentView(APIView):
         )
     parser_classes = [MultiPartParser, FormParser]
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
+    @role_required("Leads")
     def post(self, request, pk, *args, **kwargs):
         """
         Upload a new attachment for a lead
@@ -746,6 +750,7 @@ class LeadAttachmentView(APIView):
         tags=["Leads"],
         parameters=swagger_params1.organization_params,
         responses=AttachmentsSerializer(many=True),)
+    @role_required("Leads")
     def get(self, request, pk, *args, **kwargs):
         """
         Get all attachments for a lead
@@ -762,6 +767,7 @@ class CreateLeadFromSite(APIView):
         tags=["Leads"],
         parameters=swagger_params1.organization_params,request=CreateLeadFromSiteSwaggerSerializer
     )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
         params = request.data
         api_key = params.get("apikey")
