@@ -22,12 +22,12 @@ class TagsSerializer(serializers.ModelSerializer):
 class CompanySwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ("name",)
+        fields = ("name", "address", "telephone")
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ("id", "name", "org")
+        fields = ("id", "name", "address", "telephone", "org")
 
 
 class LeadSerializer(serializers.ModelSerializer):
