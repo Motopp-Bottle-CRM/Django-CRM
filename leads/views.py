@@ -33,6 +33,7 @@ from leads.serializer import (
     LeadSerializer,
     TagsSerializer,
     LeadCreateSwaggerSerializer,
+    LeadEditSwaggerSerializer,
     LeadDetailEditSwaggerSerializer,
     LeadCommentEditSwaggerSerializer,
     CreateLeadFromSiteSwaggerSerializer,
@@ -418,7 +419,7 @@ class LeadDetailView(APIView):
         )
         return Response(context)
 
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer)
+    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadEditSwaggerSerializer)
     @role_required("Leads")
     def put(self, request, pk, **kwargs):
         params = request.data

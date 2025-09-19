@@ -884,6 +884,16 @@ class UserStatusView(APIView):
         profiles = Profile.objects.filter(org=request.profile.org)
         profile = profiles.get(id=pk)
 
+        # Prevent self-deactivation/activation
+        if profile.id == request.profile.id:
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You cannot change your own account status",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if params.get("status"):
             user_status = params.get("status")
             if user_status == "Active":
@@ -1081,6 +1091,20 @@ class GoogleLoginView(APIView):
             refresh_token = RefreshToken.for_user(user)
             access_token = refresh_token.access_token
 
+            # Get the user's primary organization
+            try:
+                profile = Profile.objects.filter(user=user, is_active=True).first()
+                print(f"DEBUG: Google login - Found profile for user {user.email}: {profile}")
+                if profile:
+                    print(f"DEBUG: Google login - Profile org: {profile.org}")
+                    org_id = str(profile.org.id) if profile.org else None
+                else:
+                    print(f"DEBUG: Google login - No active profile found for user {user.email}")
+                    org_id = None
+            except Exception as e:
+                print(f"DEBUG: Google login - Error getting profile for user {user.email}: {e}")
+                org_id = None
+
             response = {
                 "username": user.email,
                 "access_token": str(access_token),
@@ -1088,7 +1112,8 @@ class GoogleLoginView(APIView):
                 "user_id": user.id,
                 "email": user.email,
                 "role": role,
-                "profile_pic": user.profile_pic
+                "profile_pic": user.profile_pic,
+                "org_id": org_id
             }
             return Response(response, status=status.HTTP_200_OK)
 

@@ -551,18 +551,27 @@ class FormLoginSerializer(serializers.Serializer):
 
         access["user_id"] = str(user.id)
         access["email"] = user.email
+        
+        # Get the user's primary organization
         try:
-            profile = Profile.objects.get(user_id=user.id)
-            role = profile.role
-        except Profile.DoesNotExist:
-            role = None
-        print(f" profile ", profile)
-        print(" aaaaaaaaaaa ")
+            profile = Profile.objects.filter(user=user, is_active=True).first()
+            print(f"DEBUG: Found profile for user {user.email}: {profile}")
+            if profile:
+                print(f"DEBUG: Profile org: {profile.org}")
+                org_id = str(profile.org.id) if profile.org else None
+            else:
+                print(f"DEBUG: No active profile found for user {user.email}")
+                org_id = None
+        except Exception as e:
+            print(f"DEBUG: Error getting profile for user {user.email}: {e}")
+            org_id = None
+            
         return {
             "refresh": str(refresh),
             "access": str(access),
             "user_id": str(user.id),
             "email": user.email,
+            "org_id": org_id,
             "role": role,   # 
         }
 
