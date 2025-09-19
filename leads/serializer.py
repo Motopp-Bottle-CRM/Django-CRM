@@ -31,6 +31,7 @@ class CompanySerializer(serializers.ModelSerializer):
 
 
 class LeadSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()
     contacts = ContactSerializer(read_only=True, many=True)
     assigned_to = ProfileSerializer(read_only=True, many=True)
     created_by = UserSerializer()
@@ -42,6 +43,9 @@ class LeadSerializer(serializers.ModelSerializer):
 
     def get_country(self, obj):
         return obj.get_country_display()
+
+    def get_company_name(self, obj):
+        return obj.company.name if obj.company else None
 
     class Meta:
         model = Lead
@@ -79,7 +83,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "teams",
             "linkedin_id",
             "industry",
-            "company",
+            "company_name",
             "organization",
             "probability",
             "close_date",
@@ -101,7 +105,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         self.fields["company"].required = True
         self.fields["contacts"].required = False
         self.fields["lead_attachment"].required = False
-        
+
         # Handle case where profile might be None
         if request_obj and hasattr(request_obj, 'profile') and request_obj.profile:
             self.org = request_obj.profile.org
@@ -187,7 +191,7 @@ class LeadCreateSwaggerSerializer(serializers.ModelSerializer):
     company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
     contacts = serializers.ListField(required=False, allow_empty=True)
     lead_attachment = serializers.ListField(required=False, allow_empty=True)
-    
+
     class Meta:
         model = Lead
         fields = ["title","job_title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
@@ -199,7 +203,7 @@ class LeadEditSwaggerSerializer(serializers.ModelSerializer):
     company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
     contacts = serializers.ListField(required=False, allow_empty=True)
     lead_attachment = serializers.ListField(required=False, allow_empty=True)
-    
+
     class Meta:
         model = Lead
         fields = ["title","job_title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
