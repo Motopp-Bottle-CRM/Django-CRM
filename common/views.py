@@ -74,12 +74,14 @@ from .serializer import SetPasswordSerializer
 
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 import uuid
-
+from common.decorator import role_required
+ 
 class GetTeamsAndUsersView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
+    @role_required("Users")
     def get(self, request, *args, **kwargs):
         data = {}
         teams = Teams.objects.filter(org=request.profile.org).order_by("-id")
@@ -101,6 +103,7 @@ class UsersListView(APIView, LimitOffsetPagination):
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
     )
+    @role_required("Users")
     def post(self, request, format=None):
 
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
@@ -185,6 +188,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                     )
 
     @extend_schema(tags=["Users"], parameters=swagger_params1.user_list_params)
+    @role_required("Users")
     def get(self, request, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             return Response(
@@ -255,6 +259,7 @@ class UserDetailView(APIView):
         return profile
 
     @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
+    @role_required("Users")
     def get(self, request, pk, format=None):
 
         profile_obj = self.get_object(pk)
@@ -299,6 +304,7 @@ class UserDetailView(APIView):
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
     )
+    @role_required("Users")
     def put(self, request, pk, format=None):
         params = request.data
         profile = self.get_object(pk)
@@ -353,6 +359,7 @@ class UserDetailView(APIView):
         )
 #Nataliia sprint3
     @extend_schema(tags=["Users"], parameters=swagger_params1.organization_params)
+    @role_required("Users")
     def delete(self, request, pk, format=None):
         # only Admin can delete other USERs
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
@@ -1071,6 +1078,8 @@ class GoogleLoginView(APIView):
             # Get or create user
             try:
                 user = User.objects.get(email=data["email"])
+                profile = Profile.objects.get(user_id=user.id)
+                role = profile.role
             except User.DoesNotExist:
                 user = User()
                 user.email = data["email"]
@@ -1078,6 +1087,7 @@ class GoogleLoginView(APIView):
                 # Provide random default password
                 user.password = make_password(BaseUserManager().make_random_password())
                 user.save()
+                role=''
 
             # Generate JWT token
             refresh_token = RefreshToken.for_user(user)
@@ -1103,6 +1113,7 @@ class GoogleLoginView(APIView):
                 "refresh_token": str(refresh_token),
                 "user_id": user.id,
                 "email": user.email,
+                "role": role,
                 "profile_pic": user.profile_pic,
                 "org_id": org_id
             }
