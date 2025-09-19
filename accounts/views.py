@@ -54,7 +54,7 @@ from opportunity.models import SOURCES, STAGES, Opportunity
 from opportunity.serializer import OpportunitySerializer
 from tasks.serializer import TaskSerializer
 from teams.models import Teams
-
+from common.decorator import role_required
 
 class AccountsListView(APIView, LimitOffsetPagination):
     #authentication_classes = (CustomDualAuthentication,)
@@ -147,11 +147,13 @@ class AccountsListView(APIView, LimitOffsetPagination):
         return context
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.account_get_params)
+    @role_required("Accounts")
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params,request=AccountWriteSerializer)
+    @role_required("Accounts")
     def post(self, request, *args, **kwargs):
         data = request.data
         serializer = AccountCreateSerializer(
@@ -223,6 +225,7 @@ class AccountDetailView(APIView):
         return get_object_or_404(Account, id=pk)
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params,request=AccountWriteSerializer)
+    @role_required("Accounts")
     def put(self, request, pk, format=None):
         data = request.data
         account_object = self.get_object(pk=pk)
@@ -316,6 +319,7 @@ class AccountDetailView(APIView):
         )
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params)
+    @role_required("Accounts")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if self.object.org != request.profile.org:
@@ -339,6 +343,7 @@ class AccountDetailView(APIView):
         )
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params)
+    @role_required("Accounts")
     def get(self, request, pk, format=None):
         self.account = self.get_object(pk=pk)
         if self.account.org != request.profile.org:
@@ -438,6 +443,7 @@ class AccountDetailView(APIView):
     @extend_schema(
         tags=["Accounts"], parameters=swagger_params1.organization_params,request=AccountDetailEditSwaggerSerializer
     )
+    @role_required("Accounts")
     def post(self, request, pk, **kwargs):
         data = request.data
         context = {}
@@ -506,6 +512,7 @@ class AccountCommentView(APIView):
     @extend_schema(
         tags=["Accounts"], parameters=swagger_params1.organization_params,request=AccountCommentEditSwaggerSerializer
     )
+    @role_required("Accounts")
     def put(self, request, pk, format=None):
         data = request.data
         obj = self.get_object(pk)
@@ -535,6 +542,7 @@ class AccountCommentView(APIView):
         )
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params)
+    @role_required("Accounts")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -563,6 +571,7 @@ class AccountAttachmentView(APIView):
     serializer_class = AccountDetailEditSwaggerSerializer
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params)
+    @role_required("Accounts")
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
@@ -591,6 +600,7 @@ class AccountCreateMailView(APIView):
     serializer_class = EmailWriteSerializer
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params,request=EmailWriteSerializer)
+    @role_required("Accounts")
     def post(self, request, pk, *args, **kwargs):
         data = request.data
         scheduled_later = data.get("scheduled_later")

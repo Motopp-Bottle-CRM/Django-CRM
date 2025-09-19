@@ -185,9 +185,15 @@ class Org(BaseModel):
 #         self.key_expires = timezone.now() + datetime.timedelta(hours=2)
 #         super().save(*args, **kwargs)
 
-
-
-
+# user story 24
+class Roles(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.name
+    
+    # to delete later - it was part of multuple roles implementation
 class Profile(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     org = models.ForeignKey(
@@ -202,7 +208,9 @@ class Profile(BaseModel):
         blank=True,
         null=True,
     )
-    role = models.CharField(max_length=50, choices=ROLES, default="USER")
+    role = models.CharField(max_length=50, choices=ROLES, default="SALES")
+    #role = models.ManyToManyField("Roles", related_name="profiles")
+    
     has_sales_access = models.BooleanField(default=False)
     has_marketing_access = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -220,6 +228,13 @@ class Profile(BaseModel):
         return f"{self.user.email} <{self.org.name}>"
 
     @property
+    def permissions(self):
+            from common.utils import ROLE_PERMISSIONS
+            return ROLE_PERMISSIONS.get(self.role, [])
+
+    def has_access(self, module_name: str) -> bool:
+            return module_name in self.permissions
+    @property
     def is_admin(self):
         return self.is_organization_admin
 
@@ -231,6 +246,10 @@ class Profile(BaseModel):
             'is_active' : self.user.is_active,
             'profile_pic' : self.user.profile_pic
         }
+
+
+
+
 
 
 class Comment(BaseModel):

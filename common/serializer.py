@@ -555,13 +555,16 @@ class FormLoginSerializer(serializers.Serializer):
         # Get the user's primary organization
         try:
             profile = Profile.objects.filter(user=user, is_active=True).first()
+            
             print(f"DEBUG: Found profile for user {user.email}: {profile}")
             if profile:
+                role = profile.role
                 print(f"DEBUG: Profile org: {profile.org}")
                 org_id = str(profile.org.id) if profile.org else None
             else:
                 print(f"DEBUG: No active profile found for user {user.email}")
                 org_id = None
+                role = None
         except Exception as e:
             print(f"DEBUG: Error getting profile for user {user.email}: {e}")
             org_id = None
@@ -572,6 +575,7 @@ class FormLoginSerializer(serializers.Serializer):
             "user_id": str(user.id),
             "email": user.email,
             "org_id": org_id,
+            "role": role,   # 
         }
 
     def save(self):

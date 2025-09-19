@@ -26,7 +26,7 @@ from opportunity.models import Opportunity
 from opportunity.serializer import *
 from opportunity.tasks import send_email_to_assigned_user
 from teams.models import Teams
-
+from common.decorator import role_required  
 
 class OpportunityListView(APIView, LimitOffsetPagination):
 
@@ -100,6 +100,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         tags=["Opportunities"],
         parameters=swagger_params1.opportunity_list_get_params,
     )
+    @role_required("Opportunities")
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
@@ -108,6 +109,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         tags=["Opportunities"],
         parameters=swagger_params1.organization_params,request=OpportunityCreateSwaggerSerializer
     )
+    @role_required("Opportunities")
     def post(self, request, *args, **kwargs):
         params = request.data
         serializer = OpportunityCreateSerializer(data=params, request_obj=request)
@@ -191,6 +193,7 @@ class OpportunityDetailView(APIView):
         tags=["Opportunities"],
         parameters=swagger_params1.organization_params,request=OpportunityCreateSwaggerSerializer
     )
+    @role_required("Opportunities")
     def put(self, request, pk, format=None):
         params = request.data
         opportunity_object = self.get_object(pk=pk)
@@ -290,6 +293,7 @@ class OpportunityDetailView(APIView):
     @extend_schema(
         tags=["Opportunities"], parameters=swagger_params1.organization_params
     )
+    @role_required("Opportunities")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if self.object.org != request.profile.org:
@@ -315,6 +319,7 @@ class OpportunityDetailView(APIView):
     @extend_schema(
         tags=["Opportunities"], parameters=swagger_params1.organization_params
     )
+    @role_required("Opportunities")
     def get(self, request, pk, format=None):
         self.opportunity = self.get_object(pk=pk)
         context = {}
@@ -392,6 +397,7 @@ class OpportunityDetailView(APIView):
         tags=["Opportunities"],
         parameters=swagger_params1.organization_params,request=OpportunityDetailEditSwaggerSerializer
     )
+    @role_required("Opportunities")
     def post(self, request, pk, **kwargs):
         params = request.data
         context = {}
@@ -459,6 +465,7 @@ class OpportunityCommentView(APIView):
         tags=["Opportunities"],
         parameters=swagger_params1.organization_params,request=OpportunityCommentEditSwaggerSerializer
     )
+    @role_required("Opportunities")
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -490,6 +497,7 @@ class OpportunityCommentView(APIView):
     @extend_schema(
         tags=["Opportunities"], parameters=swagger_params1.organization_params
     )
+    @role_required("Opportunities")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -519,6 +527,7 @@ class OpportunityAttachmentView(APIView):
     @extend_schema(
         tags=["Opportunities"], parameters=swagger_params1.organization_params
     )
+    @role_required("Opportunities")
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
