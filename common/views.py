@@ -1094,6 +1094,7 @@ class GoogleLoginView(APIView):
             # Get the user's primary organization
             try:
                 profile = Profile.objects.filter(user=user, is_active=True).first()
+                role = profile.role
                 print(f"DEBUG: Google login - Found profile for user {user.email}: {profile}")
                 if profile:
                     print(f"DEBUG: Google login - Profile org: {profile.org}")
