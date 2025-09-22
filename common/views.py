@@ -415,7 +415,7 @@ class ApiHomeView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Dashboard"],parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
         accounts = Account.objects.filter(status="open", org=request.profile.org)
         contacts = Contact.objects.filter(org=request.profile.org)
@@ -424,22 +424,25 @@ class ApiHomeView(APIView):
         )
         opportunities = Opportunity.objects.filter(org=request.profile.org)
 
+# showing everything i created or assigned to me - for one user only
+
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            user=self.request.profile.user
+            profile=self.request.profile
             accounts = accounts.filter(
-                Q(assigned_to=self.request.profile)
-                | Q(created_by=self.request.profile.user)
+                Q(assigned_to=profile) | Q(created_by=user)
             )
+
             contacts = contacts.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
+                Q(assigned_to=profile) | Q(created_by=user)
             )
+
             leads = leads.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
+                Q(assigned_to=profile) | Q(created_by=user)
             ).exclude(status="closed")
+
             opportunities = opportunities.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
+                Q(assigned_to=profile) | Q(created_by=user)
             )
         context = {}
         context["accounts_count"] = accounts.count()
