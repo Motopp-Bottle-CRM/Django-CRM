@@ -86,12 +86,14 @@ ROLE_PERMISSIONS = {
     ],
     "SALES": [
         "Leads",
+        "Companies",
         "Opportunities",
         "Accounts",
         "Contacts",
     ],
     "SALES_MANAGER": [
         "Leads",
+        "Companies",
         "Opportunities",
         "Accounts",
         "Contacts",
@@ -99,10 +101,12 @@ ROLE_PERMISSIONS = {
     "MARKETING": [
         "Contacts",
         "Leads",
+        "Companies",
     ],
     "MARKETING_MANAGER": [
         "Contacts",
         "Leads",
+        "Companies",
     ],
     "SUPPORT": [
         "Cases",

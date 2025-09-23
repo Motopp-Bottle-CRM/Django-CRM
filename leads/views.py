@@ -282,15 +282,6 @@ class LeadDetailView(APIView):
         ]
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.user)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            if self.request.profile.id not in user_assgn_list:
-                return Response(
-                    {
-                        "error": True,
-                        "errors": "You do not have Permission to perform this action",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
 
         comments = Comment.objects.filter(lead=self.lead_obj).order_by("-id")
         attachments = Attachments.objects.filter(lead=self.lead_obj).order_by("-id")
@@ -366,7 +357,9 @@ class LeadDetailView(APIView):
     @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params,description="Lead Detail")
    # @role_required("Leads")
     def get(self, request, pk, **kwargs):
+        print(" 1 --------------------------------")
         self.lead_obj = self.get_object(pk)
+        print(" 2 --------------------------------")
         context = self.get_context_data(**kwargs)
         return Response(context)
 
