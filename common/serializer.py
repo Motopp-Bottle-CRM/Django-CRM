@@ -418,7 +418,7 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     It is swagger for creating or updating user
     """
 
-    ROLE_CHOICES = ["ADMIN", "USER"]
+    ROLE_CHOICES = ["ADMIN","SALES","SALES_MANAGER", "MARKETING", "MARKETING_MANAGER", "EMPLOYEE"]
 
     email = serializers.CharField(max_length=1000, required=True)
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
