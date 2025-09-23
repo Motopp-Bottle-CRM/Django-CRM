@@ -99,10 +99,46 @@ class UsersListView(APIView, LimitOffsetPagination):
 
     permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
-    @extend_schema(tags=["Users"],
+    # @extend_schema(tags=["Users"],
+    #     parameters=swagger_params1.organization_params,
+    #     request=UserCreateSwaggerSerializer,
+    # )
+    @extend_schema(
+        tags=["Users"],
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
+        examples=[
+            OpenApiExample(
+                "Required fields example",
+                summary="Minimal payload with required fields only",
+                value={
+                    "email": "user@example.com",
+                    "role": "ADMIN",
+                    "phone": "+912345678911"
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Full payload example",
+                summary="All fields included",
+                value={
+                    "email": "user@example.com",
+                    "role": "SALES",
+                    "phone": "+912345678911",
+                    "alternate_phone": "987654321",
+                    "address_line": "123 Main St",
+                    "street": "Main Street",
+                    "city": "New York",
+                    "state": "NY",
+                    "pincode": "10001",
+                    "country": "USA"
+                },
+                request_only=True,
+            )
+        ],
     )
+
+
     @role_required("Users")
     def post(self, request, format=None):
 

@@ -423,13 +423,13 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=1000, required=True)
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
     phone = serializers.CharField(max_length=12)
-    alternate_phone = serializers.CharField(max_length=12)
-    address_line = serializers.CharField(max_length=10000, required=True)
-    street = serializers.CharField(max_length=1000)
-    city = serializers.CharField(max_length=1000)
-    state = serializers.CharField(max_length=1000)
-    pincode = serializers.CharField(max_length=1000)
-    country = serializers.CharField(max_length=1000)
+    alternate_phone = serializers.CharField(max_length=12,required=False, allow_blank=True)
+    address_line = serializers.CharField(max_length=10000, required=False)
+    street = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    city = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    state = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    pincode = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    country = serializers.CharField(max_length=1000,required=False, allow_blank=True)
 
 
 class UserUpdateStatusSwaggerSerializer(serializers.Serializer):

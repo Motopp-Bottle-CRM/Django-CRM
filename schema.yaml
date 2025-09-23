@@ -6,7 +6,7 @@ info:
 paths:
   /api/accounts/:
     get:
-      operationId: accounts_retrieve
+      operationId: api_accounts_retrieve
       parameters:
       - in: query
         name: city
@@ -26,6 +26,8 @@ paths:
           type: string
       tags:
       - Accounts
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -34,7 +36,7 @@ paths:
                 $ref: '#/components/schemas/AccountRead'
           description: ''
     post:
-      operationId: accounts_create
+      operationId: api_accounts_create
       parameters:
       - in: header
         name: org
@@ -54,6 +56,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AccountWriteRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -63,7 +67,7 @@ paths:
           description: ''
   /api/accounts/{id}/:
     get:
-      operationId: accounts_retrieve_2
+      operationId: api_accounts_retrieve_2
       parameters:
       - in: path
         name: id
@@ -76,6 +80,8 @@ paths:
           type: string
       tags:
       - Accounts
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -84,7 +90,7 @@ paths:
                 $ref: '#/components/schemas/AccountRead'
           description: ''
     post:
-      operationId: accounts_create_2
+      operationId: api_accounts_create_2
       parameters:
       - in: path
         name: id
@@ -109,6 +115,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AccountDetailEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -117,7 +125,7 @@ paths:
                 $ref: '#/components/schemas/AccountRead'
           description: ''
     put:
-      operationId: accounts_update
+      operationId: api_accounts_update
       parameters:
       - in: path
         name: id
@@ -142,6 +150,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AccountWriteRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -150,7 +160,7 @@ paths:
                 $ref: '#/components/schemas/AccountRead'
           description: ''
     delete:
-      operationId: accounts_destroy
+      operationId: api_accounts_destroy
       parameters:
       - in: path
         name: id
@@ -163,12 +173,14 @@ paths:
           type: string
       tags:
       - Accounts
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/accounts/{id}/create_mail/:
     post:
-      operationId: accounts_create_mail_create
+      operationId: api_accounts_create_mail_create
       parameters:
       - in: path
         name: id
@@ -193,6 +205,8 @@ paths:
             schema:
               $ref: '#/components/schemas/EmailWriteRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -202,7 +216,7 @@ paths:
           description: ''
   /api/accounts/attachment/{id}/:
     delete:
-      operationId: accounts_attachment_destroy
+      operationId: api_accounts_attachment_destroy
       parameters:
       - in: path
         name: id
@@ -215,12 +229,14 @@ paths:
           type: string
       tags:
       - Accounts
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/accounts/comment/{id}/:
     put:
-      operationId: accounts_comment_update
+      operationId: api_accounts_comment_update
       parameters:
       - in: path
         name: id
@@ -245,6 +261,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AccountCommentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -253,7 +271,7 @@ paths:
                 $ref: '#/components/schemas/AccountCommentEditSwagger'
           description: ''
     delete:
-      operationId: accounts_comment_destroy
+      operationId: api_accounts_comment_destroy
       parameters:
       - in: path
         name: id
@@ -266,12 +284,14 @@ paths:
           type: string
       tags:
       - Accounts
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/api-settings/:
     get:
-      operationId: api_settings_retrieve
+      operationId: api_api_settings_retrieve
       parameters:
       - in: header
         name: org
@@ -285,7 +305,7 @@ paths:
         '200':
           description: No response body
     post:
-      operationId: api_settings_create
+      operationId: api_api_settings_create
       parameters:
       - in: header
         name: org
@@ -312,7 +332,7 @@ paths:
           description: No response body
   /api/api-settings/{id}/:
     get:
-      operationId: api_settings_retrieve_2
+      operationId: api_api_settings_retrieve_2
       parameters:
       - in: path
         name: id
@@ -325,11 +345,13 @@ paths:
           type: string
       tags:
       - Settings
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: api_settings_update
+      operationId: api_api_settings_update
       parameters:
       - in: path
         name: id
@@ -354,11 +376,13 @@ paths:
             schema:
               $ref: '#/components/schemas/APISettingsSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: api_settings_destroy
+      operationId: api_api_settings_destroy
       parameters:
       - in: path
         name: id
@@ -371,15 +395,17 @@ paths:
           type: string
       tags:
       - Settings
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/auth/google/:
     post:
-      operationId: auth_google_create
+      operationId: api_auth_google_create
       description: Login through Google
       tags:
-      - auth
+      - api
       requestBody:
         content:
           application/json:
@@ -394,18 +420,38 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/login/:
+    post:
+      operationId: api_auth_login_create
+      description: Login through Form
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FormLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FormLoginRequest'
+        required: true
       responses:
         '200':
           description: No response body
   /api/auth/refresh-token/:
     post:
-      operationId: auth_refresh_token_create
+      operationId: api_auth_refresh_token_create
       description: |-
         Takes a refresh type JSON web token and returns an access type JSON web
         token if the refresh token is valid.
       tags:
-      - auth
+      - api
       requestBody:
         content:
           application/json:
@@ -425,9 +471,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
           description: ''
+  /api/auth/set-password/:
+    post:
+      operationId: api_auth_set_password_create
+      description: set password through Form
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
   /api/cases/:
     get:
-      operationId: cases_retrieve
+      operationId: api_cases_retrieve
       parameters:
       - in: query
         name: account
@@ -451,11 +518,13 @@ paths:
           type: string
       tags:
       - Cases
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: cases_create
+      operationId: api_cases_create
       parameters:
       - in: header
         name: org
@@ -475,12 +544,14 @@ paths:
             schema:
               $ref: '#/components/schemas/CaseCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/cases/{id}/:
     get:
-      operationId: cases_retrieve_2
+      operationId: api_cases_retrieve_2
       parameters:
       - in: path
         name: id
@@ -493,11 +564,13 @@ paths:
           type: string
       tags:
       - Cases
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: cases_create_2
+      operationId: api_cases_create_2
       parameters:
       - in: path
         name: id
@@ -522,11 +595,13 @@ paths:
             schema:
               $ref: '#/components/schemas/CaseDetailEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: cases_update
+      operationId: api_cases_update
       parameters:
       - in: path
         name: id
@@ -551,11 +626,13 @@ paths:
             schema:
               $ref: '#/components/schemas/CaseCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: cases_destroy
+      operationId: api_cases_destroy
       parameters:
       - in: path
         name: id
@@ -568,12 +645,14 @@ paths:
           type: string
       tags:
       - Cases
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/cases/attachment/{id}/:
     delete:
-      operationId: cases_attachment_destroy
+      operationId: api_cases_attachment_destroy
       parameters:
       - in: path
         name: id
@@ -586,12 +665,14 @@ paths:
           type: string
       tags:
       - Cases
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/cases/comment/{id}/:
     put:
-      operationId: cases_comment_update
+      operationId: api_cases_comment_update
       parameters:
       - in: path
         name: id
@@ -616,11 +697,13 @@ paths:
             schema:
               $ref: '#/components/schemas/CaseCommentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: cases_comment_destroy
+      operationId: api_cases_comment_destroy
       parameters:
       - in: path
         name: id
@@ -633,12 +716,14 @@ paths:
           type: string
       tags:
       - Cases
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/contacts/:
     get:
-      operationId: contacts_retrieve
+      operationId: api_contacts_retrieve
       parameters:
       - in: query
         name: assigned_to
@@ -657,19 +742,21 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: contacts_create
+      operationId: api_contacts_create
       parameters:
       - in: header
         name: org
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       requestBody:
         content:
           application/json:
@@ -682,12 +769,14 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateContactRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/contacts/{id}/:
     get:
-      operationId: contacts_retrieve_2
+      operationId: api_contacts_retrieve_2
       parameters:
       - in: path
         name: id
@@ -699,14 +788,14 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       security:
       - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: contacts_create_2
+      operationId: api_contacts_create_2
       parameters:
       - in: path
         name: id
@@ -718,7 +807,7 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       requestBody:
         content:
           application/json:
@@ -737,7 +826,7 @@ paths:
         '200':
           description: No response body
     put:
-      operationId: contacts_update
+      operationId: api_contacts_update
       parameters:
       - in: query
         name: assigned_to
@@ -821,7 +910,7 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       requestBody:
         content:
           application/json:
@@ -840,7 +929,7 @@ paths:
         '200':
           description: No response body
     delete:
-      operationId: contacts_destroy
+      operationId: api_contacts_destroy
       parameters:
       - in: path
         name: id
@@ -852,7 +941,7 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       security:
       - jwtAuth: []
       responses:
@@ -860,7 +949,7 @@ paths:
           description: No response body
   /api/contacts/attachment/{id}/:
     delete:
-      operationId: contacts_attachment_destroy
+      operationId: api_contacts_attachment_destroy
       parameters:
       - in: path
         name: id
@@ -872,7 +961,7 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       security:
       - jwtAuth: []
       responses:
@@ -880,7 +969,7 @@ paths:
           description: No response body
   /api/contacts/comment/{id}/:
     put:
-      operationId: contacts_comment_update
+      operationId: api_contacts_comment_update
       parameters:
       - in: path
         name: id
@@ -892,7 +981,7 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       requestBody:
         content:
           application/json:
@@ -911,7 +1000,7 @@ paths:
         '200':
           description: No response body
     delete:
-      operationId: contacts_comment_destroy
+      operationId: api_contacts_comment_destroy
       parameters:
       - in: path
         name: id
@@ -923,7 +1012,7 @@ paths:
         schema:
           type: string
       tags:
-      - contacts
+      - Contacts
       security:
       - jwtAuth: []
       responses:
@@ -931,14 +1020,14 @@ paths:
           description: No response body
   /api/dashboard/:
     get:
-      operationId: dashboard_retrieve
+      operationId: api_dashboard_retrieve
       parameters:
       - in: header
         name: org
         schema:
           type: string
       tags:
-      - dashboard
+      - Dashboard
       security:
       - jwtAuth: []
       responses:
@@ -946,7 +1035,7 @@ paths:
           description: No response body
   /api/documents/:
     get:
-      operationId: documents_retrieve
+      operationId: api_documents_retrieve
       parameters:
       - in: header
         name: org
@@ -969,11 +1058,13 @@ paths:
           type: string
       tags:
       - documents
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: documents_create
+      operationId: api_documents_create
       parameters:
       - in: header
         name: org
@@ -993,12 +1084,14 @@ paths:
             schema:
               $ref: '#/components/schemas/DocumentCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/documents/{id}/:
     get:
-      operationId: documents_retrieve_2
+      operationId: api_documents_retrieve_2
       parameters:
       - in: path
         name: id
@@ -1011,11 +1104,13 @@ paths:
           type: string
       tags:
       - documents
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: documents_update
+      operationId: api_documents_update
       parameters:
       - in: path
         name: id
@@ -1040,11 +1135,13 @@ paths:
             schema:
               $ref: '#/components/schemas/DocumentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: documents_destroy
+      operationId: api_documents_destroy
       parameters:
       - in: path
         name: id
@@ -1057,12 +1154,14 @@ paths:
           type: string
       tags:
       - documents
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/events/:
     get:
-      operationId: events_retrieve
+      operationId: api_events_retrieve
       parameters:
       - in: query
         name: assigned_users
@@ -1082,11 +1181,13 @@ paths:
           type: string
       tags:
       - Events
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: events_create
+      operationId: api_events_create
       parameters:
       - in: header
         name: org
@@ -1106,12 +1207,14 @@ paths:
             schema:
               $ref: '#/components/schemas/EventCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/events/{id}/:
     get:
-      operationId: events_retrieve_2
+      operationId: api_events_retrieve_2
       parameters:
       - in: path
         name: id
@@ -1124,11 +1227,13 @@ paths:
           type: string
       tags:
       - Events
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: events_create_2
+      operationId: api_events_create_2
       parameters:
       - in: path
         name: id
@@ -1153,11 +1258,13 @@ paths:
             schema:
               $ref: '#/components/schemas/EventDetailEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: events_update
+      operationId: api_events_update
       parameters:
       - in: path
         name: id
@@ -1182,11 +1289,13 @@ paths:
             schema:
               $ref: '#/components/schemas/EventCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: events_destroy
+      operationId: api_events_destroy
       parameters:
       - in: path
         name: id
@@ -1199,12 +1308,14 @@ paths:
           type: string
       tags:
       - Events
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/events/attachment/{id}/:
     delete:
-      operationId: events_attachment_destroy
+      operationId: api_events_attachment_destroy
       parameters:
       - in: path
         name: id
@@ -1217,12 +1328,14 @@ paths:
           type: string
       tags:
       - Events
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/events/comment/{id}/:
     put:
-      operationId: events_comment_update
+      operationId: api_events_comment_update
       parameters:
       - in: path
         name: id
@@ -1247,11 +1360,13 @@ paths:
             schema:
               $ref: '#/components/schemas/EventCommentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: events_comment_destroy
+      operationId: api_events_comment_destroy
       parameters:
       - in: path
         name: id
@@ -1264,12 +1379,14 @@ paths:
           type: string
       tags:
       - Events
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/leads/:
     get:
-      operationId: leads_retrieve
+      operationId: api_leads_retrieve
       parameters:
       - in: query
         name: assigned_to
@@ -1309,7 +1426,7 @@ paths:
         '200':
           description: No response body
     post:
-      operationId: leads_create
+      operationId: api_leads_create
       description: Leads Create
       parameters:
       - in: header
@@ -1337,7 +1454,7 @@ paths:
           description: No response body
   /api/leads/{id}/:
     get:
-      operationId: leads_retrieve_2
+      operationId: api_leads_retrieve_2
       description: Lead Detail
       parameters:
       - in: path
@@ -1351,11 +1468,13 @@ paths:
           type: string
       tags:
       - Leads
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: leads_create_2
+      operationId: api_leads_create_2
       parameters:
       - in: path
         name: id
@@ -1380,11 +1499,13 @@ paths:
             schema:
               $ref: '#/components/schemas/LeadDetailEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: leads_update
+      operationId: api_leads_update
       parameters:
       - in: path
         name: id
@@ -1401,19 +1522,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LeadCreateSwaggerRequest'
+              $ref: '#/components/schemas/LeadEditSwaggerRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LeadCreateSwaggerRequest'
+              $ref: '#/components/schemas/LeadEditSwaggerRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LeadCreateSwaggerRequest'
+              $ref: '#/components/schemas/LeadEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: leads_destroy
+      operationId: api_leads_destroy
       description: Lead Delete
       parameters:
       - in: path
@@ -1427,12 +1550,15 @@ paths:
           type: string
       tags:
       - Leads
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/leads/attachment/{id}/:
-    delete:
-      operationId: leads_attachment_destroy
+    get:
+      operationId: api_leads_attachment_list
+      description: Get all attachments for a lead
       parameters:
       - in: path
         name: id
@@ -1445,12 +1571,94 @@ paths:
           type: string
       tags:
       - Leads
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachments'
+          description: ''
+    post:
+      operationId: api_leads_attachment_create
+      description: Upload a new attachment for a lead
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: header
+        name: org
+        schema:
+          type: string
+      tags:
+      - Leads
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachmentsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AttachmentsRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_leads_attachment_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: header
+        name: org
+        schema:
+          type: string
+      tags:
+      - Leads
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/leads/comment/{id}/:
-    put:
-      operationId: leads_comment_update
+    get:
+      operationId: api_leads_comment_list
+      description: Get all comments for a lead
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: header
+        name: org
+        schema:
+          type: string
+      tags:
+      - Leads
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeadComment'
+          description: ''
+    post:
+      operationId: api_leads_comment_create
       parameters:
       - in: path
         name: id
@@ -1475,11 +1683,17 @@ paths:
             schema:
               $ref: '#/components/schemas/LeadCommentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
-          description: No response body
-    delete:
-      operationId: leads_comment_destroy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadComment'
+          description: ''
+    put:
+      operationId: api_leads_comment_update
       parameters:
       - in: path
         name: id
@@ -1492,26 +1706,59 @@ paths:
           type: string
       tags:
       - Leads
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadCommentEditSwaggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LeadCommentEditSwaggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeadCommentEditSwaggerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_leads_comment_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: header
+        name: org
+        schema:
+          type: string
+      tags:
+      - Leads
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/leads/companies:
     get:
-      operationId: leads_companies_retrieve
+      operationId: api_leads_companies_retrieve
       parameters:
       - in: header
         name: org
         schema:
           type: string
       tags:
-      - Company
+      - Companies
       security:
       - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: leads_companies_create
+      operationId: api_leads_companies_create
       description: Company Create
       parameters:
       - in: header
@@ -1519,7 +1766,7 @@ paths:
         schema:
           type: string
       tags:
-      - Company
+      - Companies
       requestBody:
         content:
           application/json:
@@ -1538,7 +1785,7 @@ paths:
           description: No response body
   /api/leads/company/{id}:
     get:
-      operationId: leads_company_retrieve
+      operationId: api_leads_company_retrieve
       parameters:
       - in: path
         name: id
@@ -1550,14 +1797,14 @@ paths:
         schema:
           type: string
       tags:
-      - Company
+      - Companies
       security:
       - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: leads_company_update
+      operationId: api_leads_company_update
       description: Company Update
       parameters:
       - in: path
@@ -1570,7 +1817,7 @@ paths:
         schema:
           type: string
       tags:
-      - Company
+      - Companies
       requestBody:
         content:
           application/json:
@@ -1588,7 +1835,7 @@ paths:
         '200':
           description: No response body
     delete:
-      operationId: leads_company_destroy
+      operationId: api_leads_company_destroy
       parameters:
       - in: path
         name: id
@@ -1600,7 +1847,7 @@ paths:
         schema:
           type: string
       tags:
-      - Company
+      - Companies
       security:
       - jwtAuth: []
       responses:
@@ -1608,7 +1855,7 @@ paths:
           description: No response body
   /api/leads/create-from-site/:
     post:
-      operationId: leads_create_from_site_create
+      operationId: api_leads_create_from_site_create
       parameters:
       - in: header
         name: org
@@ -1630,13 +1877,12 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - {}
       responses:
         '200':
           description: No response body
   /api/leads/upload/:
     post:
-      operationId: leads_upload_create
+      operationId: api_leads_upload_create
       parameters:
       - in: header
         name: org
@@ -1656,12 +1902,14 @@ paths:
             schema:
               $ref: '#/components/schemas/LeadUploadSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/opportunities/:
     get:
-      operationId: opportunities_retrieve
+      operationId: api_opportunities_retrieve
       parameters:
       - in: query
         name: account
@@ -1689,11 +1937,13 @@ paths:
           type: string
       tags:
       - Opportunities
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: opportunities_create
+      operationId: api_opportunities_create
       parameters:
       - in: header
         name: org
@@ -1713,12 +1963,14 @@ paths:
             schema:
               $ref: '#/components/schemas/OpportunityCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/opportunities/{id}/:
     get:
-      operationId: opportunities_retrieve_2
+      operationId: api_opportunities_retrieve_2
       parameters:
       - in: path
         name: id
@@ -1731,11 +1983,13 @@ paths:
           type: string
       tags:
       - Opportunities
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: opportunities_create_2
+      operationId: api_opportunities_create_2
       parameters:
       - in: path
         name: id
@@ -1760,11 +2014,13 @@ paths:
             schema:
               $ref: '#/components/schemas/OpportunityDetailEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: opportunities_update
+      operationId: api_opportunities_update
       parameters:
       - in: path
         name: id
@@ -1789,11 +2045,13 @@ paths:
             schema:
               $ref: '#/components/schemas/OpportunityCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: opportunities_destroy
+      operationId: api_opportunities_destroy
       parameters:
       - in: path
         name: id
@@ -1806,12 +2064,14 @@ paths:
           type: string
       tags:
       - Opportunities
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/opportunities/attachment/{id}/:
     delete:
-      operationId: opportunities_attachment_destroy
+      operationId: api_opportunities_attachment_destroy
       parameters:
       - in: path
         name: id
@@ -1824,12 +2084,14 @@ paths:
           type: string
       tags:
       - Opportunities
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/opportunities/comment/{id}/:
     put:
-      operationId: opportunities_comment_update
+      operationId: api_opportunities_comment_update
       parameters:
       - in: path
         name: id
@@ -1854,11 +2116,13 @@ paths:
             schema:
               $ref: '#/components/schemas/OpportunityCommentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: opportunities_comment_destroy
+      operationId: api_opportunities_comment_destroy
       parameters:
       - in: path
         name: id
@@ -1871,15 +2135,19 @@ paths:
           type: string
       tags:
       - Opportunities
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/org/:
     get:
-      operationId: org_retrieve
+      operationId: api_org_retrieve
       description: Just Pass the token, will return ORG list, associated with user
       tags:
-      - org
+      - api
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -1888,10 +2156,10 @@ paths:
                 $ref: '#/components/schemas/OrgProfileCreate'
           description: ''
     post:
-      operationId: org_create
+      operationId: api_org_create
       description: Organization and profile Creation api
       tags:
-      - org
+      - api
       requestBody:
         content:
           application/json:
@@ -1904,6 +2172,8 @@ paths:
             schema:
               $ref: '#/components/schemas/OrgProfileCreateRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -1913,22 +2183,103 @@ paths:
           description: ''
   /api/profile/:
     get:
-      operationId: profile_retrieve
+      operationId: api_profile_retrieve
       parameters:
       - in: header
         name: org
         schema:
           type: string
       tags:
-      - profile
+      - api
       security:
       - jwtAuth: []
       responses:
         '200':
           description: No response body
+    put:
+      operationId: api_profile_update
+      parameters:
+      - in: header
+        name: org
+        schema:
+          type: string
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateSwaggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreateSwaggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreateSwaggerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/set-password/{token}/:
+    get:
+      operationId: api_set_password_retrieve
+      description: Get invitation details for frontend
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_set_password_create
+      description: Set password using invitation token
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordFromInvitationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetPasswordFromInvitationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetPasswordFromInvitationRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
   /api/tasks/:
     get:
-      operationId: tasks_retrieve
+      operationId: api_tasks_retrieve
       parameters:
       - in: header
         name: org
@@ -1948,11 +2299,13 @@ paths:
           type: string
       tags:
       - Tasks
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: tasks_create
+      operationId: api_tasks_create
       parameters:
       - in: header
         name: org
@@ -1972,12 +2325,14 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/tasks/{id}/:
     get:
-      operationId: tasks_retrieve_2
+      operationId: api_tasks_retrieve_2
       parameters:
       - in: path
         name: id
@@ -1990,11 +2345,13 @@ paths:
           type: string
       tags:
       - Tasks
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: tasks_create_2
+      operationId: api_tasks_create_2
       parameters:
       - in: path
         name: id
@@ -2019,11 +2376,13 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskDetailEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: tasks_update
+      operationId: api_tasks_update
       parameters:
       - in: path
         name: id
@@ -2048,11 +2407,13 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskCreateSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: tasks_destroy
+      operationId: api_tasks_destroy
       parameters:
       - in: path
         name: id
@@ -2065,12 +2426,14 @@ paths:
           type: string
       tags:
       - Tasks
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/tasks/attachment/{id}/:
     delete:
-      operationId: tasks_attachment_destroy
+      operationId: api_tasks_attachment_destroy
       parameters:
       - in: path
         name: id
@@ -2083,12 +2446,14 @@ paths:
           type: string
       tags:
       - Tasks
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/tasks/comment/{id}/:
     put:
-      operationId: tasks_comment_update
+      operationId: api_tasks_comment_update
       parameters:
       - in: path
         name: id
@@ -2113,11 +2478,13 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskCommentEditSwaggerRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: tasks_comment_destroy
+      operationId: api_tasks_comment_destroy
       parameters:
       - in: path
         name: id
@@ -2130,12 +2497,14 @@ paths:
           type: string
       tags:
       - Tasks
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/teams/:
     get:
-      operationId: teams_retrieve
+      operationId: api_teams_retrieve
       parameters:
       - in: query
         name: assigned_users
@@ -2155,11 +2524,13 @@ paths:
           type: string
       tags:
       - Teams
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: teams_create
+      operationId: api_teams_create
       parameters:
       - in: header
         name: org
@@ -2179,12 +2550,14 @@ paths:
             schema:
               $ref: '#/components/schemas/TeamswaggerCreateRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
   /api/teams/{id}/:
     get:
-      operationId: teams_retrieve_2
+      operationId: api_teams_retrieve_2
       parameters:
       - in: path
         name: id
@@ -2197,11 +2570,13 @@ paths:
           type: string
       tags:
       - Teams
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: teams_update
+      operationId: api_teams_update
       parameters:
       - in: path
         name: id
@@ -2226,11 +2601,13 @@ paths:
             schema:
               $ref: '#/components/schemas/TeamswaggerCreateRequest'
         required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           description: No response body
     delete:
-      operationId: teams_destroy
+      operationId: api_teams_destroy
       parameters:
       - in: path
         name: id
@@ -2243,12 +2620,14 @@ paths:
           type: string
       tags:
       - Teams
+      security:
+      - jwtAuth: []
       responses:
         '204':
           description: No response body
   /api/user/{id}/:
     get:
-      operationId: user_retrieve
+      operationId: api_user_retrieve
       parameters:
       - in: path
         name: id
@@ -2260,14 +2639,14 @@ paths:
         schema:
           type: string
       tags:
-      - users
+      - Users
       security:
       - jwtAuth: []
       responses:
         '200':
           description: No response body
     put:
-      operationId: user_update
+      operationId: api_user_update
       parameters:
       - in: path
         name: id
@@ -2279,7 +2658,7 @@ paths:
         schema:
           type: string
       tags:
-      - users
+      - Users
       requestBody:
         content:
           application/json:
@@ -2298,7 +2677,7 @@ paths:
         '200':
           description: No response body
     delete:
-      operationId: user_destroy
+      operationId: api_user_destroy
       parameters:
       - in: path
         name: id
@@ -2310,7 +2689,7 @@ paths:
         schema:
           type: string
       tags:
-      - users
+      - Users
       security:
       - jwtAuth: []
       responses:
@@ -2318,7 +2697,7 @@ paths:
           description: No response body
   /api/user/{id}/status/:
     post:
-      operationId: user_status_create
+      operationId: api_user_status_create
       description: User Status View
       parameters:
       - in: path
@@ -2331,7 +2710,7 @@ paths:
         schema:
           type: string
       tags:
-      - user
+      - Users
       requestBody:
         content:
           application/json:
@@ -2349,9 +2728,30 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/user/{user_id}/resend-invitation/:
+    post:
+      operationId: api_user_resend_invitation_create
+      description: View to resend invitation email
+      parameters:
+      - in: header
+        name: org
+        schema:
+          type: string
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/users/:
     get:
-      operationId: users_retrieve
+      operationId: api_users_retrieve
       parameters:
       - in: query
         name: email
@@ -2376,21 +2776,21 @@ paths:
           - Active
           - In Active
       tags:
-      - users
+      - Users
       security:
       - jwtAuth: []
       responses:
         '200':
           description: No response body
     post:
-      operationId: users_create
+      operationId: api_users_create
       parameters:
       - in: header
         name: org
         schema:
           type: string
       tags:
-      - users
+      - Users
       requestBody:
         content:
           application/json:
@@ -2410,14 +2810,30 @@ paths:
           description: No response body
   /api/users/get-teams-and-users/:
     get:
-      operationId: users_get_teams_and_users_retrieve
+      operationId: api_users_get_teams_and_users_retrieve
       parameters:
       - in: header
         name: org
         schema:
           type: string
       tags:
-      - users
+      - Users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/users/inactive/:
+    get:
+      operationId: api_users_inactive_retrieve
+      description: View to list inactive users and their invitation status
+      parameters:
+      - in: header
+        name: org
+        schema:
+          type: string
+      tags:
+      - Users
       security:
       - jwtAuth: []
       responses:
@@ -2594,6 +3010,40 @@ components:
       description: |-
         * `open` - Open
         * `close` - Close
+    Attachments:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        attachment:
+          type: string
+          format: uri
+        file_name:
+          type: string
+          maxLength: 60
+        file_path:
+          type: string
+          readOnly: true
+      required:
+      - attachment
+      - file_name
+      - file_path
+      - id
+    AttachmentsRequest:
+      type: object
+      properties:
+        attachment:
+          type: string
+          format: binary
+        file_name:
+          type: string
+          minLength: 1
+          maxLength: 60
+      required:
+      - attachment
+      - file_name
     BillingCountryEnum:
       enum:
       - GB
@@ -3214,6 +3664,14 @@ components:
           type: string
           nullable: true
           maxLength: 100
+        address:
+          type: string
+          nullable: true
+          maxLength: 255
+        telephone:
+          type: string
+          nullable: true
+          maxLength: 20
         org:
           type: string
           format: uuid
@@ -3225,6 +3683,14 @@ components:
           type: string
           nullable: true
           maxLength: 100
+        address:
+          type: string
+          nullable: true
+          maxLength: 255
+        telephone:
+          type: string
+          nullable: true
+          maxLength: 20
     ContactCommentEditSwaggerRequest:
       type: object
       properties:
@@ -4375,6 +4841,21 @@ components:
       description: |-
         * `Recurring` - Recurring
         * `Non-Recurring` - Non-Recurring
+    FormLoginRequest:
+      type: object
+      description: Serializer for user login.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
     IndustryEnum:
       enum:
       - ADVERTISING
@@ -4439,6 +4920,32 @@ components:
         * `TELEVISION` - TELEVISION
         * `TRANSPORTATION` - TRANSPORTATION
         * `VENTURE CAPITAL` - VENTURE CAPITAL
+    LeadComment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        comment:
+          type: string
+          maxLength: 255
+        commented_on:
+          type: string
+          format: date-time
+          readOnly: true
+        commented_by:
+          type: string
+          readOnly: true
+        lead:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - comment
+      - commented_by
+      - commented_on
+      - id
     LeadCommentEditSwaggerRequest:
       type: object
       properties:
@@ -4454,6 +4961,10 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        job_title:
+          type: string
+          nullable: true
+          maxLength: 255
         first_name:
           type: string
           nullable: true
@@ -4479,9 +4990,7 @@ components:
           maxLength: 254
         lead_attachment:
           type: array
-          items:
-            type: string
-            format: uuid
+          items: {}
         opportunity_amount:
           type: string
           format: decimal
@@ -4506,14 +5015,12 @@ components:
             format: uuid
         contacts:
           type: array
-          items:
-            type: string
-            format: uuid
+          items: {}
         status:
           nullable: true
           title: Status of Lead
           oneOf:
-          - $ref: '#/components/schemas/LeadCreateSwaggerStatusEnum'
+          - $ref: '#/components/schemas/Status1f7Enum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         source:
@@ -4558,8 +5065,9 @@ components:
             format: uuid
         company:
           type: string
-          format: uuid
           nullable: true
+          minLength: 1
+          description: Company name as string
         probability:
           type: integer
           maximum: 2147483647
@@ -4572,30 +5080,14 @@ components:
           - $ref: '#/components/schemas/IndustryEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
-        skype_ID:
+        linkedin_id:
           type: string
           nullable: true
           maxLength: 100
       required:
       - assigned_to
-      - contacts
-      - lead_attachment
       - teams
       - title
-    LeadCreateSwaggerStatusEnum:
-      enum:
-      - assigned
-      - in process
-      - converted
-      - recycled
-      - closed
-      type: string
-      description: |-
-        * `assigned` - Assigned
-        * `in process` - In Process
-        * `converted` - Converted
-        * `recycled` - Recycled
-        * `closed` - Closed
     LeadDetailEditSwaggerRequest:
       type: object
       properties:
@@ -4608,6 +5100,140 @@ components:
       required:
       - comment
       - lead_attachment
+    LeadEditSwaggerRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 64
+        job_title:
+          type: string
+          nullable: true
+          maxLength: 255
+        first_name:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 255
+        last_name:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 255
+        account_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 128
+        email:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 254
+        lead_attachment:
+          type: array
+          items: {}
+        opportunity_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        website:
+          type: string
+          nullable: true
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        teams:
+          type: array
+          items:
+            type: string
+            format: uuid
+        assigned_to:
+          type: array
+          items:
+            type: string
+            format: uuid
+        contacts:
+          type: array
+          items: {}
+        status:
+          nullable: true
+          title: Status of Lead
+          oneOf:
+          - $ref: '#/components/schemas/Status1f7Enum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        source:
+          nullable: true
+          title: Source of Lead
+          oneOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        address_line:
+          type: string
+          nullable: true
+          title: Address
+          maxLength: 255
+        street:
+          type: string
+          nullable: true
+          maxLength: 55
+        city:
+          type: string
+          nullable: true
+          maxLength: 255
+        state:
+          type: string
+          nullable: true
+          maxLength: 255
+        postcode:
+          type: string
+          nullable: true
+          title: Post/Zip-code
+          maxLength: 64
+        country:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CountryEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tags:
+          type: array
+          items:
+            type: string
+            format: uuid
+        company:
+          type: string
+          nullable: true
+          minLength: 1
+          description: Company name as string
+        probability:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+        industry:
+          nullable: true
+          title: Industry Type
+          oneOf:
+          - $ref: '#/components/schemas/IndustryEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        linkedin_id:
+          type: string
+          nullable: true
+          maxLength: 100
+      required:
+      - assigned_to
+      - teams
+      - title
     LeadSourceEnum:
       enum:
       - NONE
@@ -4757,11 +5383,58 @@ components:
     RoleEnum:
       enum:
       - ADMIN
-      - USER
+      - SALES
+      - SALES_MANAGER
+      - MARKETING
+      - MARKETING_MANAGER
+      - SUPPORT
       type: string
       description: |-
         * `ADMIN` - ADMIN
-        * `USER` - USER
+        * `SALES` - SALES
+        * `SALES_MANAGER` - SALES_MANAGER
+        * `MARKETING` - MARKETING
+        * `MARKETING_MANAGER` - MARKETING_MANAGER
+        * `SUPPORT` - SUPPORT
+    SetPasswordFromInvitationRequest:
+      type: object
+      description: Serializer for setting password from invitation
+      properties:
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        confirm_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - confirm_password
+      - password
+    SetPasswordRequest:
+      type: object
+      description: Serializer for setting a new password for a user who has no password
+        yet.
+      properties:
+        email:
+          type: string
+          format: email
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+        confirmPassword:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+      required:
+      - confirmPassword
+      - email
+      - password
     SocialLoginRequest:
       type: object
       properties:
@@ -4810,6 +5483,20 @@ components:
         * `NEGOTIATION/REVIEW` - NEGOTIATION/REVIEW
         * `CLOSED WON` - CLOSED WON
         * `CLOSED LOST` - CLOSED LOST
+    Status1f7Enum:
+      enum:
+      - assigned
+      - in process
+      - converted
+      - recycled
+      - closed
+      type: string
+      description: |-
+        * `assigned` - Assigned
+        * `in process` - In Process
+        * `converted` - Converted
+        * `recycled` - Recycled
+        * `closed` - Closed
     TaskCommentEditSwaggerRequest:
       type: object
       properties:
@@ -4943,7 +5630,6 @@ components:
           maxLength: 12
         alternate_phone:
           type: string
-          minLength: 1
           maxLength: 12
         address_line:
           type: string
@@ -4971,7 +5657,6 @@ components:
           maxLength: 1000
       required:
       - address_line
-      - alternate_phone
       - city
       - country
       - email

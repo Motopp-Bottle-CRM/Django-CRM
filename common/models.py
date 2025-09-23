@@ -69,7 +69,7 @@ class Address(BaseModel):
     address_line = models.CharField(
         _("Address"), max_length=255, blank=True, default=""
     )
-    street = models.CharField(_("Street"), max_length=55, blank=True, default="")
+    street = models.CharField(_("Street"), max_length=55, blank=True, default="" )
     city = models.CharField(_("City"), max_length=255, blank=True, default="")
     state = models.CharField(_("State"), max_length=255, blank=True, default="")
     postcode = models.CharField(
