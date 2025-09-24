@@ -115,6 +115,12 @@ ROLE_PERMISSIONS = {
         "Contacts",
     ],
 }
+ROLE_PERMISSIONS_SHOW = (
+    ("ADMIN", ("ALL - Users  Contacts Leads Companies Opportunities Cases Accounts")),
+    ("SALES / SALES_MANAGER", ("Leads Companies Opportunities Accounts Contacts")),
+    ("MARKETING / MARKETING_MANAGER", ("Contacts Leads Companies")),
+    ("SUPPORT", ("Cases Contacts")),
+)
 
 LEAD_STATUS = (
     ("assigned", "Assigned"),

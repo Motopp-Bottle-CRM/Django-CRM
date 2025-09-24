@@ -22,9 +22,9 @@ from common.templatetags.common_tags import (
     is_document_file_video,
     is_document_file_zip,
 )
-from common.utils import COUNTRIES, ROLES
+from common.utils import COUNTRIES, ROLES, ROLE_PERMISSIONS
 from common.base import BaseModel
-
+           
 
 def img_url(self, filename):
     hash_ = int(time.time())
@@ -229,7 +229,7 @@ class Profile(BaseModel):
 
     @property
     def permissions(self):
-            from common.utils import ROLE_PERMISSIONS
+          
             return ROLE_PERMISSIONS.get(self.role, [])
 
     def has_access(self, module_name: str) -> bool:
