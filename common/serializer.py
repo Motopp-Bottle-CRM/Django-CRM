@@ -8,7 +8,7 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from common.utils import ROLE_CHOICES, ROLE_PERMISSIONS ,ROLE_PERMISSIONS_SHOW
+from common.utils import  ROLES ,ROLE_PERMISSIONS_SHOW
 
 from common.models import (
     Address,
@@ -414,25 +414,17 @@ class DocumentEditSwaggerSerializer(serializers.ModelSerializer):
         model = Document
         fields = ["title", "document_file", "teams", "shared_to", "status"]
 
-# class UserRolesPermissionsSwaggerSerializer(serializers.Serializer):
-
-#     role_permissions = serializers.ChoiceField(choices=ROLE_PERMISSIONS, required=True)
 
 
 class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     It is swagger for creating or updating user
     """
-    role_permissions = serializers.ChoiceField(choices=ROLE_PERMISSIONS_SHOW, required=True)
-
-
-    # ROLE_PERMISSIONS = ROLE_PERMISSIONS
-
-   # ROLE_CHOICES = ["ADMIN","SALES","SALES_MANAGER", "MARKETING", "MARKETING_MANAGER", "SUPPORT"]
    
-
     email = serializers.CharField(max_length=1000, required=True)
-    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
+    role = serializers.ChoiceField(choices=ROLES, required=True)
+    role_permissions = serializers.ChoiceField(choices=ROLE_PERMISSIONS_SHOW, required=False)
+
     phone = serializers.CharField(max_length=12)
     alternate_phone = serializers.CharField(max_length=12,required=False, allow_blank=True)
     address_line = serializers.CharField(max_length=10000, required=False)

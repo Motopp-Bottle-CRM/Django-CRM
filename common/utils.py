@@ -74,8 +74,6 @@ ROLES = (
     ("SUPPORT", "Support"),
 )
 
-ROLE_CHOICES = ["ADMIN","SALES","SALES_MANAGER", "MARKETING", "MARKETING_MANAGER", "SUPPORT"]
-
 ROLE_PERMISSIONS = {
     "ADMIN": [
         "Users",

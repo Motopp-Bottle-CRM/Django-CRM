@@ -131,14 +131,14 @@ class UsersListView(APIView, LimitOffsetPagination):
                     "city": "New York",
                     "state": "NY",
                     "pincode": "10001",
-                    "country": "USA"
+                    "country": "US"
                 },
                 request_only=True,
             ),
             OpenApiExample(
             "Role permissions",
             description="Modules accessible for each role",
-            value=ROLE_PERMISSIONS,
+            value=ROLE_PERMISSIONS_SHOW,
         )
         ],
     )
