@@ -37,7 +37,8 @@ from leads.serializer import (
     LeadDetailEditSwaggerSerializer,
     LeadCommentEditSwaggerSerializer,
     CreateLeadFromSiteSwaggerSerializer,
-    LeadUploadSwaggerSerializer
+    LeadUploadSwaggerSerializer,
+    LeadStatusUpdateSwaggerSerializer
 )
 from common.models import User
 from leads.tasks import (
@@ -922,3 +923,28 @@ class CompanyDetail(APIView):
                 {"error": False, 'message': 'Deleted successfully'},
                 status=status.HTTP_200_OK,
             )
+class LeadStatusUpdateView(APIView):
+    model = Lead
+    #authentication_classes = (CustomDualAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self, pk):
+        return get_object_or_404(Lead, id=pk)
+
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,request=LeadStatusUpdateSwaggerSerializer)
+
+    def put(self, request, pk):
+        try:
+            lead = Lead.objects.get(pk=pk)
+        except Lead.DoesNotExist:
+            return Response({"detail": "Lead not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LeadStatusUpdateSwaggerSerializer(lead, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
