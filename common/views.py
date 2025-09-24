@@ -75,7 +75,8 @@ from .serializer import SetPasswordSerializer
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 import uuid
 from common.decorator import role_required
- 
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
 class GetTeamsAndUsersView(APIView):
 
     permission_classes = (IsAuthenticated,)
@@ -464,12 +465,27 @@ class ApiHomeView(APIView):
             Q(status="converted") | Q(status="closed")
         )
         opportunities = Opportunity.objects.filter(org=request.profile.org)
+        
+        user=self.request.profile.user
+        user_filter = [user]
+        profile=self.request.profile
+        role=self.request.profile.role
+# for managers - show for whole department
+        if role == "SALES_MANAGER" or role == "MARKETING_MANAGER":
+            if role == "SALES_MANAGER":
+                user_filter = User.objects.filter(profile__role__in=['SALES', 'SALES_MANAGER'])
+            else:
+                user_filter = User.objects.filter(profile__role__in=['MARKETING', 'MARKETING_MANAGER'])
 
+            accounts = accounts.filter(created_by__in=user_filter)
+            contacts = contacts.filter(created_by__in=user_filter)
+            leads = leads.filter(created_by__in=user_filter).exclude(status="closed")
+            opportunities = opportunities.filter(created_by__in=user_filter)
+     
 # showing everything i created or assigned to me - for one user only
 
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            user=self.request.profile.user
-            profile=self.request.profile
+        elif self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            
             accounts = accounts.filter(
                 Q(assigned_to=profile) | Q(created_by=user)
             )
@@ -485,11 +501,37 @@ class ApiHomeView(APIView):
             opportunities = opportunities.filter(
                 Q(assigned_to=profile) | Q(created_by=user)
             )
+        #making everything in one responce
         context = {}
+        total_leads = leads.count()
         context["accounts_count"] = accounts.count()
         context["contacts_count"] = contacts.count()
-        context["leads_count"] = leads.count()
+        context["leads_count"] = total_leads
         context["opportunities_count"] = opportunities.count()
+
+        #calculating  created last month
+        now = timezone.now()
+        # first_day_last_month = (now.replace(day=1) - relativedelta(months=1)).replace(
+        #     hour=0, minute=0, second=0, microsecond=0
+        # )
+        # last_day_last_month = now.replace(day=1) - relativedelta(seconds=1)
+       #this month
+        first_day_current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        context["leads_this_month"] =  leads.filter(
+            created_at__gte=first_day_current_month,
+            created_at__lte=now,
+            created_by__in=user_filter
+        ).count()
+        # context["kpi_leads"]=leads.filter(status="converted").count()/leads.count()
+        converted_leads = leads.filter(status="converted").count()
+        context["kpi_leads"] = (converted_leads / total_leads) if total_leads else 0
+        
+        context["leads_assigned"] =  leads.filter(status="assigned").count()
+        context["leads_inprocess"] =  leads.filter(status="in process").count()  
+        context["leads_recycled"] =  leads.filter(status="recycled").count()
+        context["leads_closed"] =  leads.filter(status="closed").count()  
+
         context["accounts"] = AccountSerializer(accounts, many=True).data
         context["contacts"] = ContactSerializer(contacts, many=True).data
         context["leads"] = LeadSerializer(leads, many=True).data
