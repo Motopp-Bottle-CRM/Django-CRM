@@ -26,6 +26,10 @@ from contacts.models import Contact
 from leads import swagger_params1
 from leads.forms import LeadListForm
 from leads.models import Company, Lead
+from accounts.models import Account
+from contacts.models import Contact
+from common.models import Address
+
 from leads.serializer import (
     CompanySerializer,
     CompanySwaggerSerializer,
@@ -944,7 +948,62 @@ class LeadStatusUpdateView(APIView):
         serializer = LeadStatusUpdateSwaggerSerializer(lead, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            company_name = lead.company.name if lead.company else None
+
+            contact_address = Address.objects.create(
+                address_line=lead.address_line,
+                street=lead.street,
+                city=lead.city,
+                state=lead.state,
+                postcode=lead.postcode,
+                country=lead.country,
+                created_by_id=request.profile.user.id,
+
+            )
+
+            contact = Contact.objects.create(
+                first_name=lead.first_name,
+                last_name=lead.last_name,
+                organization=company_name,
+                title=company_name,
+                primary_email=lead.email,
+                mobile_number=lead.phone,
+                secondary_number=lead.phone,
+                address_id=contact_address.id,
+                created_by_id=request.profile.user.id,
+                country=lead.country,
+                org_id=request.profile.org.id,
+            )
+
+            account = Account.objects.create(
+
+                name= company_name,
+                website=lead.website,
+                email=lead.email,
+                industry=lead.industry,
+                phone=lead.phone,
+                contact_name = contact.first_name + " " + contact.last_name,
+                billing_address_line=lead.address_line,
+                billing_street=lead.street,
+                billing_city=lead.city,
+                billing_state=lead.state,
+                billing_postcode=lead.postcode,
+                billing_country=lead.country,
+                is_active=False,
+                status='open',
+                lead_id=lead.id,
+                created_by_id=request.profile.user.id,
+                org_id=request.profile.org.id,
+            )
+
+
+            return Response({
+        'message': 'Lead converted successfully',
+        'account_id': account.id,
+        'contact_id': contact.id
+    }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
