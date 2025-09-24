@@ -134,7 +134,12 @@ class UsersListView(APIView, LimitOffsetPagination):
                     "country": "USA"
                 },
                 request_only=True,
-            )
+            ),
+            OpenApiExample(
+            "Role permissions",
+            description="Modules accessible for each role",
+            value=ROLE_PERMISSIONS,
+        )
         ],
     )
 

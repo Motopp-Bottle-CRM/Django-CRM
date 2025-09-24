@@ -8,6 +8,8 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from common.utils import ROLE_CHOICES, ROLE_PERMISSIONS 
+
 from common.models import (
     Address,
     APISettings,
@@ -413,12 +415,15 @@ class DocumentEditSwaggerSerializer(serializers.ModelSerializer):
         fields = ["title", "document_file", "teams", "shared_to", "status"]
 
 
+
 class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     It is swagger for creating or updating user
     """
+    ROLE_PERMISSIONS = ROLE_PERMISSIONS
 
-    ROLE_CHOICES = ["ADMIN","SALES","SALES_MANAGER", "MARKETING", "MARKETING_MANAGER", "SUPPORT"]
+   # ROLE_CHOICES = ["ADMIN","SALES","SALES_MANAGER", "MARKETING", "MARKETING_MANAGER", "SUPPORT"]
+   
 
     email = serializers.CharField(max_length=1000, required=True)
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
@@ -430,7 +435,6 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     state = serializers.CharField(max_length=1000,required=False, allow_blank=True)
     pincode = serializers.CharField(max_length=1000,required=False, allow_blank=True)
     country = serializers.CharField(max_length=1000,required=False, allow_blank=True)
-
 
 class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
 
@@ -605,3 +609,5 @@ class SetPasswordFromInvitationSerializer(serializers.Serializer):
         if not re.search(r'\d', value):
             raise serializers.ValidationError("Password must contain at least one digit.")
         return value
+
+

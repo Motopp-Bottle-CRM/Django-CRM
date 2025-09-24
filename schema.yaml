@@ -2796,6 +2796,61 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UserCreateSwaggerRequest'
+            examples:
+              RequiredFieldsExample:
+                value:
+                  email: user@example.com
+                  role: ADMIN
+                  phone: '+912345678911'
+                summary: Minimal payload with required fields only
+              FullPayloadExample:
+                value:
+                  email: user@example.com
+                  role: SALES
+                  phone: '+912345678911'
+                  alternate_phone: '987654321'
+                  address_line: 123 Main St
+                  street: Main Street
+                  city: New York
+                  state: NY
+                  pincode: '10001'
+                  country: USA
+                summary: All fields included
+              RolePermissions:
+                value:
+                  ADMIN:
+                  - Users
+                  - Contacts
+                  - Leads
+                  - Companies
+                  - Opportunities
+                  - Cases
+                  - Accounts
+                  SALES:
+                  - Leads
+                  - Companies
+                  - Opportunities
+                  - Accounts
+                  - Contacts
+                  SALES_MANAGER:
+                  - Leads
+                  - Companies
+                  - Opportunities
+                  - Accounts
+                  - Contacts
+                  MARKETING:
+                  - Contacts
+                  - Leads
+                  - Companies
+                  MARKETING_MANAGER:
+                  - Contacts
+                  - Leads
+                  - Companies
+                  SUPPORT:
+                  - Cases
+                  - Contacts
+                summary: Role permissions
+                description: Modules accessible for each role
           application/x-www-form-urlencoded:
             schema:
               $ref: '#/components/schemas/UserCreateSwaggerRequest'
@@ -5616,7 +5671,6 @@ components:
       - refresh
     UserCreateSwaggerRequest:
       type: object
-      description: It is swagger for creating or updating user
       properties:
         email:
           type: string
@@ -5631,40 +5685,10 @@ components:
         alternate_phone:
           type: string
           maxLength: 12
-        address_line:
-          type: string
-          minLength: 1
-          maxLength: 10000
-        street:
-          type: string
-          minLength: 1
-          maxLength: 1000
-        city:
-          type: string
-          minLength: 1
-          maxLength: 1000
-        state:
-          type: string
-          minLength: 1
-          maxLength: 1000
-        pincode:
-          type: string
-          minLength: 1
-          maxLength: 1000
-        country:
-          type: string
-          minLength: 1
-          maxLength: 1000
       required:
-      - address_line
-      - city
-      - country
       - email
       - phone
-      - pincode
       - role
-      - state
-      - street
     UserUpdateStatusSwaggerRequest:
       type: object
       properties:
