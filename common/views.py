@@ -467,30 +467,27 @@ class ApiHomeView(APIView):
         user=self.request.profile.user
         user_filter = [user]
         profile=self.request.profile
+        profile_filter=[profile]
+
         role=self.request.profile.role
 # for managers - show for whole department
         if role == "SALES_MANAGER" or role == "MARKETING_MANAGER" or role=='ADMIN':
             if role == "SALES_MANAGER":
                 user_filter = User.objects.filter(profile__role__in=['SALES', 'SALES_MANAGER'])
+                profile_filter = Profile.objects.filter(role__in=['SALES', 'SALES_MANAGER'])
             elif role == "MARKETING_MANAGER":
                 user_filter = User.objects.filter(profile__role__in=['MARKETING', 'MARKETING_MANAGER'])
+                profile_filter = Profile.objects.filter(role__in=['MARKETING', 'MARKETING_MANAGER'])
             else:
                 user_filter=User.objects.filter(profile__org=self.request.profile.org)
+                profile_filter = Profile.objects.filter( org=self.request.profile.org)
             
-            contacts = contacts.filter(created_by__in=user_filter)
-            leads = leads.filter(created_by__in=user_filter)
-     
-# showing everything i created or assigned to me - for one user only
 
-        elif self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        contacts = contacts.filter(
+                Q(assigned_to__in=profile_filter) | Q(created_by__in=user_filter))
 
-            contacts = contacts.filter(
-                Q(assigned_to=profile) | Q(created_by=user)
-            )
-
-            leads = leads.filter(
-                Q(assigned_to=profile) | Q(created_by=user)
-            )
+        leads = leads.filter(
+                Q(assigned_to__in=profile_filter) | Q(created_by__in=user_filter))
 
         #making everything in one responce
         total_leads = leads.count()

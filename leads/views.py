@@ -59,20 +59,50 @@ class LeadListView(APIView, LimitOffsetPagination):
 
     def get_context_data(self, **kwargs):
         params = self.request.query_params
+      
+          # my new roles based
         queryset = (
             self.model.objects.filter(org=self.request.profile.org)
             .exclude(status="converted")
             .select_related("created_by")
-            .prefetch_related(
-                "tags",
-                "assigned_to",
+            .prefetch_related("tags", "assigned_to")
+            .order_by("-id")
+        )
+
+        if self.request.profile.role == "SALES_MANAGER":
+            queryset = queryset.filter(
+                Q(assigned_to__role__in=["SALES", "SALES_MANAGER"])   # assigned_to is Profile
+                | Q(created_by__profile__role__in=["SALES", "SALES_MANAGER"])  # created_by is User → follow to Profile
             )
-        ).order_by("-id")
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+
+        elif self.request.profile.role == "MARKETING_MANAGER":
+            queryset = queryset.filter(
+                Q(assigned_to__role__in=["MARKETING", "MARKETING_MANAGER"])
+                | Q(created_by__profile__role__in=["MARKETING", "MARKETING_MANAGER"])
+            )
+
+        elif self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             queryset = queryset.filter(
                 Q(assigned_to__in=[self.request.profile])
                 | Q(created_by=self.request.profile.user)
             )
+
+        #  was  Tina 
+
+        # queryset = (
+        #     self.model.objects.filter(org=self.request.profile.org)
+        #     .exclude(status="converted")
+        #     .select_related("created_by")
+        #     .prefetch_related(
+        #         "tags",
+        #         "assigned_to",
+        #     )
+        # ).order_by("-id")
+        # if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        #     queryset = queryset.filter(
+        #         Q(assigned_to__in=[self.request.profile])
+        #         | Q(created_by=self.request.profile.user)
+        #     )
 
         if params:
             if params.get("name"):
