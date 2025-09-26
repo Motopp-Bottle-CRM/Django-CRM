@@ -122,22 +122,30 @@ ROLE_PERMISSIONS_SHOW = (
 
 LEAD_STATUS = (
     ("assigned", "Assigned"),
-    ("in process", "In Process"),
+    ("in_process", "In Process"),
     ("converted", "Converted"),
     ("recycled", "Recycled"),
     ("closed", "Closed"),
 )
 
-
 LEAD_SOURCE = (
-    ("call", "Call"),
-    ("email", "Email"),
-    ("existing customer", "Existing Customer"),
-    ("partner", "Partner"),
-    ("public relations", "Public Relations"),
-    ("compaign", "Campaign"),
+    ("referrals", "Referrals & Recommendations"),
+    ("marketing", "Content, SEO, Blogs, Webinars"),
+    ("advertisement", "Paid Ads (Google, LinkedIn, Meta)"),
+    ("networking", "Networking & Professional Platforms"),
+    ("events", "Events & Trade Shows"),
+    ("campaign", "Email/Call Campaigns"),
     ("other", "Other"),
 )
+# LEAD_SOURCE = (
+#     ("call", "Call"),
+#     ("email", "Email"),
+#     ("existing customer", "Existing Customer"),
+#     ("partner", "Partner"),
+#     ("public relations", "Public Relations"),
+#     ("compaign", "Campaign"),
+#     ("other", "Other"),
+# )
 
 STATUS_CHOICE = (
     ("New", "New"),

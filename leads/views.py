@@ -357,9 +357,7 @@ class LeadDetailView(APIView):
     @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params,description="Lead Detail")
    # @role_required("Leads")
     def get(self, request, pk, **kwargs):
-        print(" 1 --------------------------------")
         self.lead_obj = self.get_object(pk)
-        print(" 2 --------------------------------")
         context = self.get_context_data(**kwargs)
         return Response(context)
 

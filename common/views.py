@@ -77,6 +77,7 @@ import uuid
 from common.decorator import role_required
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
+from common.utils import LEAD_SOURCE,LEAD_STATUS
 class GetTeamsAndUsersView(APIView):
 
     permission_classes = (IsAuthenticated,)
@@ -459,36 +460,29 @@ class ApiHomeView(APIView):
 
     @extend_schema(tags=["Dashboard"],parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
-        accounts = Account.objects.filter(status="open", org=request.profile.org)
+       
         contacts = Contact.objects.filter(org=request.profile.org)
-        leads = Lead.objects.filter(org=request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
-        )
-        opportunities = Opportunity.objects.filter(org=request.profile.org)
+        leads = Lead.objects.filter(org=request.profile.org)
         
         user=self.request.profile.user
         user_filter = [user]
         profile=self.request.profile
         role=self.request.profile.role
 # for managers - show for whole department
-        if role == "SALES_MANAGER" or role == "MARKETING_MANAGER":
+        if role == "SALES_MANAGER" or role == "MARKETING_MANAGER" or role=='ADMIN':
             if role == "SALES_MANAGER":
                 user_filter = User.objects.filter(profile__role__in=['SALES', 'SALES_MANAGER'])
-            else:
+            elif role == "MARKETING_MANAGER":
                 user_filter = User.objects.filter(profile__role__in=['MARKETING', 'MARKETING_MANAGER'])
-
-            accounts = accounts.filter(created_by__in=user_filter)
+            else:
+                user_filter=User.objects.filter(profile__org=self.request.profile.org)
+            
             contacts = contacts.filter(created_by__in=user_filter)
-            leads = leads.filter(created_by__in=user_filter).exclude(status="closed")
-            opportunities = opportunities.filter(created_by__in=user_filter)
+            leads = leads.filter(created_by__in=user_filter)
      
 # showing everything i created or assigned to me - for one user only
 
         elif self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            
-            accounts = accounts.filter(
-                Q(assigned_to=profile) | Q(created_by=user)
-            )
 
             contacts = contacts.filter(
                 Q(assigned_to=profile) | Q(created_by=user)
@@ -496,46 +490,62 @@ class ApiHomeView(APIView):
 
             leads = leads.filter(
                 Q(assigned_to=profile) | Q(created_by=user)
-            ).exclude(status="closed")
-
-            opportunities = opportunities.filter(
-                Q(assigned_to=profile) | Q(created_by=user)
             )
+
         #making everything in one responce
-        context = {}
         total_leads = leads.count()
-        context["accounts_count"] = accounts.count()
-        context["contacts_count"] = contacts.count()
-        context["leads_count"] = total_leads
-        context["opportunities_count"] = opportunities.count()
+        total_contacts=contacts.count()
 
-        #calculating  created last month
+        leads_by_status = {}
+        leads_status_count = {}
+
+        for status_code, status_name in LEAD_STATUS:
+            leads_by_status[status_code] = leads.filter(status=status_code)
+            leads_status_count[status_code] = leads_by_status[status_code].count()
+ 
+        
         now = timezone.now()
-        # first_day_last_month = (now.replace(day=1) - relativedelta(months=1)).replace(
-        #     hour=0, minute=0, second=0, microsecond=0
-        # )
-        # last_day_last_month = now.replace(day=1) - relativedelta(seconds=1)
-       #this month
         first_day_current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-        context["leads_this_month"] =  leads.filter(
+        leads_this_month =  leads.filter(
             created_at__gte=first_day_current_month,
             created_at__lte=now,
             created_by__in=user_filter
         ).count()
-        # context["kpi_leads"]=leads.filter(status="converted").count()/leads.count()
-        converted_leads = leads.filter(status="converted").count()
-        context["kpi_leads"] = (converted_leads / total_leads) if total_leads else 0
-        
-        context["leads_assigned"] =  leads.filter(status="assigned").count()
-        context["leads_inprocess"] =  leads.filter(status="in process").count()  
-        context["leads_recycled"] =  leads.filter(status="recycled").count()
-        context["leads_closed"] =  leads.filter(status="closed").count()  
+        leads_in_process_this_month =  leads_by_status["in_process"].filter(
+            created_at__gte=first_day_current_month,
+            created_at__lte=now,
+            created_by__in=user_filter
+        ).count()      
 
-        context["accounts"] = AccountSerializer(accounts, many=True).data
-        context["contacts"] = ContactSerializer(contacts, many=True).data
-        context["leads"] = LeadSerializer(leads, many=True).data
-        context["opportunities"] = OpportunitySerializer(opportunities, many=True).data
+        kpi_leads = (leads_status_count["converted"] / total_leads) if total_leads else 0
+        
+  
+        contacts_this_month =  contacts.filter(
+            created_at__gte=first_day_current_month,
+            created_at__lte=now,
+            created_by__in=user_filter
+        ).count()
+
+        contacts_source_chart=[]
+        for source_code, source_name in LEAD_SOURCE:
+            contacts_source_chart.append({
+            "source": source_name,  
+            "value": leads_by_status["converted"].filter(source=source_code).count() or 0
+        })
+            
+        context = {
+            "leads_count": total_leads,
+            "contacts_count": total_contacts,
+            "leads_status_count": leads_status_count,
+            "leads_this_month": leads_this_month,
+            "leads_in_process_this_month": leads_in_process_this_month,
+            "contacts_this_month": contacts_this_month,
+            "kpi_leads": kpi_leads,
+            "contacts_source_chart": contacts_source_chart,
+            "contacts": ContactSerializer(contacts, many=True).data,
+            "leads": LeadSerializer(leads, many=True).data,
+        }
+
         return Response(context, status=status.HTTP_200_OK)
 
 
