@@ -53,6 +53,7 @@ class GetProfileAndOrg(object):
             request.path.startswith('/api/auth/')):
             return
             
+            
         try :
             request.profile = None
             user_id = None
@@ -75,15 +76,65 @@ class GetProfileAndOrg(object):
                 except Org.DoesNotExist:
                     raise AuthenticationFailed('Invalid API Key')
             if user_id is not None:
+                # Try to get profile with org header first
                 if request.headers.get("org"):
-                    profile = Profile.objects.get(
-                        user_id=user_id, org=request.headers.get("org"), is_active=True
-                    )
+                    try:
+                        profile = Profile.objects.get(
+                            user_id=user_id, org=request.headers.get("org"), is_active=True
+                        )
+                        if profile:
+                            request.profile = profile
+                    except Profile.DoesNotExist:
+                        # Try to get any active profile for this user
+                        profile = Profile.objects.filter(user_id=user_id, is_active=True).first()
+                        if profile:
+                            request.profile = profile
+                        else:
+                            # Emergency fallback: Check if user is superuser, staff, or has ADMIN role
+                            # This prevents admin lockout scenarios
+                            user = User.objects.get(id=user_id)
+                            if user.is_superuser or user.is_staff:
+                                # Get any profile for this user (even inactive) for superuser/staff
+                                profile = Profile.objects.filter(user_id=user_id).first()
+                                if profile:
+                                    request.profile = profile
+                            else:
+                                # Check if user has any ADMIN role profile (even inactive)
+                                admin_profile = Profile.objects.filter(user_id=user_id, role="ADMIN").first()
+                                if admin_profile:
+                                    request.profile = admin_profile
+                else:
+                    # No org header, try to get any active profile
+                    profile = Profile.objects.filter(user_id=user_id, is_active=True).first()
                     if profile:
                         request.profile = profile
+                    else:
+                        # Emergency fallback: Check if user is superuser, staff, or has ADMIN role
+                        user = User.objects.get(id=user_id)
+                        if user.is_superuser or user.is_staff:
+                            # Get any profile for this user (even inactive) for superuser/staff
+                            profile = Profile.objects.filter(user_id=user_id).first()
+                            if profile:
+                                request.profile = profile
+                        else:
+                            # Check if user has any ADMIN role profile (even inactive)
+                            admin_profile = Profile.objects.filter(user_id=user_id, role="ADMIN").first()
+                            if admin_profile:
+                                request.profile = admin_profile
+        except jwt.ExpiredSignatureError as e:
+            # Handle expired JWT tokens more gracefully
+            if not request.path.startswith('/api/auth/'):
+                from django.http import JsonResponse
+                return JsonResponse(
+                    {"error": True, "message": "Token has expired. Please login again."},
+                    status=401
+                )
         except Exception as e:
             # Only raise PermissionDenied for paths that require authentication
             # Skip authentication errors for auth endpoints
             if not request.path.startswith('/api/auth/'):
-                print(f'Authentication error: {e}')
-                raise PermissionDenied()
+                from django.http import JsonResponse
+                return JsonResponse(
+                    {"error": True, "message": f"Authentication failed: {str(e)}"},
+                    status=401
+                )

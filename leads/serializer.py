@@ -22,15 +22,16 @@ class TagsSerializer(serializers.ModelSerializer):
 class CompanySwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ("name",)
+        fields = ("name", "address", "telephone")
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ("id", "name", "org")
+        fields = ("id", "name", "address", "telephone", "org")
 
 
 class LeadSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()
     contacts = ContactSerializer(read_only=True, many=True)
     assigned_to = ProfileSerializer(read_only=True, many=True)
     created_by = UserSerializer()
@@ -43,12 +44,16 @@ class LeadSerializer(serializers.ModelSerializer):
     def get_country(self, obj):
         return obj.get_country_display()
 
+    def get_company_name(self, obj):
+        return obj.company.name if obj.company else None
+
     class Meta:
         model = Lead
         # fields = ‘__all__’
         fields = (
             "id",
             "title",
+            "job_title",
             "first_name",
             "last_name",
             "phone",
@@ -76,9 +81,9 @@ class LeadSerializer(serializers.ModelSerializer):
             "tags",
             "created_from_site",
             "teams",
-            "skype_ID",
+            "linkedin_id",
             "industry",
-            "company",
+            "company_name",
             "organization",
             "probability",
             "close_date",
@@ -97,7 +102,22 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         self.fields["first_name"].required = False
         self.fields["last_name"].required = False
         self.fields["title"].required = True
-        self.org = request_obj.profile.org
+        self.fields["company"].required = True
+        self.fields["contacts"].required = False
+        self.fields["lead_attachment"].required = False
+
+        # Handle case where profile might be None
+        if request_obj and hasattr(request_obj, 'profile') and request_obj.profile:
+            self.org = request_obj.profile.org
+        else:
+            # Fallback: try to get org from the request data
+            if hasattr(request_obj, 'data') and 'org' in request_obj.data:
+                self.org = request_obj.data['org']
+            else:
+                # Security: Don't use fallback org - raise error instead
+                raise serializers.ValidationError(
+                    "Authentication failed: Unable to determine organization context. Please login again."
+                )
 
         if self.instance:
             if self.instance.created_from_site:
@@ -142,6 +162,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "last_name",
             "account_name",
             "title",
+            "job_title",
             "phone",
             "email",
             "status",
@@ -149,7 +170,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "website",
             "description",
             "address_line",
-            # "contacts",
+            "contacts",
             "street",
             "city",
             "state",
@@ -157,21 +178,37 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "opportunity_amount",
             "country",
             "org",
-            "skype_ID",
+            "linkedin_id",
             "industry",
             "company",
             "organization",
             "probability",
             "close_date",
-            # "lead_attachment",
+            "lead_attachment",
         )
 
 class LeadCreateSwaggerSerializer(serializers.ModelSerializer):
+    company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
+    contacts = serializers.ListField(required=False, allow_empty=True)
+    lead_attachment = serializers.ListField(required=False, allow_empty=True)
+
     class Meta:
         model = Lead
-        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+        fields = ["title","job_title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
                 "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
-                "country","tags","company","probability","industry","skype_ID"]
+                "country","tags","company","probability","industry","linkedin_id"]
+
+
+class LeadEditSwaggerSerializer(serializers.ModelSerializer):
+    company = serializers.CharField(help_text="Company name as string", required=False, allow_null=True)
+    contacts = serializers.ListField(required=False, allow_empty=True)
+    lead_attachment = serializers.ListField(required=False, allow_empty=True)
+
+    class Meta:
+        model = Lead
+        fields = ["title","job_title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+                "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
+                "country","tags","company","probability","industry","linkedin_id"]
 
 
 class CreateLeadFromSiteSwaggerSerializer(serializers.Serializer):

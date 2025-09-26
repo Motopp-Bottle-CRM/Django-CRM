@@ -51,6 +51,9 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class LeadCommentSerializer(serializers.ModelSerializer):
+    commented_by = serializers.SerializerMethodField()
+
+
     class Meta:
         model = Comment
         fields = (
@@ -60,6 +63,16 @@ class LeadCommentSerializer(serializers.ModelSerializer):
             "commented_by",
             "lead",
         )
+    def get_commented_by(self, obj):
+        # Make sure commented_by and its user exist
+        if obj.commented_by and obj.commented_by.user:
+            return {
+                "id": str(obj.commented_by.id),
+                "email": obj.commented_by.user.email,
+                "profile_pic": obj.commented_by.user.profile_pic,
+            }
+        return None
+
 
 
 class OrgProfileCreateSerializer(serializers.ModelSerializer):
@@ -159,11 +172,11 @@ class CreateUserSerializer(serializers.ModelSerializer):
                     return email
                 raise serializers.ValidationError("Email already exists")
             return email
-        
+
         # For new users, check if User already exists (not Profile)
         if User.objects.filter(email=email.lower()).exists():
             raise serializers.ValidationError("User with this email already exists")
-        
+
         return email.lower()
 
 
@@ -175,7 +188,7 @@ class CreateProfileSerializer(serializers.ModelSerializer):
     state = serializers.CharField(required=False, allow_blank=True)
     pincode = serializers.CharField(required=False, allow_blank=True)
     country = serializers.CharField(required=False, allow_blank=True)
-    
+
     class Meta:
         model = Profile
         fields = (
@@ -251,14 +264,18 @@ class ProfileSerializer(serializers.ModelSerializer):
 class AttachmentsSerializer(serializers.ModelSerializer):
     file_path = serializers.SerializerMethodField()
 
+
     def get_file_path(self, obj):
-        if obj.attachment:
-            return obj.attachment.url
-        None
+        request = self.context.get("request")
+        if obj.attachment and request:
+            return request.build_absolute_uri(obj.attachment.url)
+        elif obj.attachment:
+            return obj.attachment.url  # fallback if no request in context
+        return None
 
     class Meta:
         model = Attachments
-        fields = ["id", "created_by", "file_name", "created_at", "file_path"]
+        fields = ["id", "attachment","file_name","file_path"]
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -481,7 +498,7 @@ class SetPasswordSerializer(serializers.Serializer):
         user.set_password(password)
         user.is_active = True  # Activate the user if they were inactive
         user.save()
-        
+
         # Also activate the profile
         try:
             from common.models import Profile
@@ -491,7 +508,7 @@ class SetPasswordSerializer(serializers.Serializer):
             print(f"SUCCESS: Profile activated for user: {user.email}, profile.is_active: {profile.is_active}")
         except Profile.DoesNotExist:
             print(f"WARNING: No profile found for user: {user.email}")
-        
+
         return user
 
 
@@ -508,20 +525,20 @@ class FormLoginSerializer(serializers.Serializer):
         password = attrs.get("password")
         if not email or not password:
             raise serializers.ValidationError("Email and password are required.")
-        
+
         print(f"DEBUG: Attempting to authenticate user: {email}")
         user = authenticate(username=email, password=password)
         print(f"DEBUG: Authentication result: {user}")
-        
+
         if user is None:
             print(f"DEBUG: Authentication failed for user: {email}")
             raise serializers.ValidationError("Invalid email or password.")
-        
+
         print(f"DEBUG: User found: {user.email}, is_active: {user.is_active}")
         if not user.is_active:
             print(f"DEBUG: User account is inactive: {user.email}")
             raise serializers.ValidationError("User account is inactive.")
-        
+
         attrs["user"] = user
         return attrs
 
@@ -534,11 +551,31 @@ class FormLoginSerializer(serializers.Serializer):
 
         access["user_id"] = str(user.id)
         access["email"] = user.email
+        
+        # Get the user's primary organization
+        try:
+            profile = Profile.objects.filter(user=user, is_active=True).first()
+            
+            print(f"DEBUG: Found profile for user {user.email}: {profile}")
+            if profile:
+                role = profile.role
+                print(f"DEBUG: Profile org: {profile.org}")
+                org_id = str(profile.org.id) if profile.org else None
+            else:
+                print(f"DEBUG: No active profile found for user {user.email}")
+                org_id = None
+                role = None
+        except Exception as e:
+            print(f"DEBUG: Error getting profile for user {user.email}: {e}")
+            org_id = None
+            
         return {
             "refresh": str(refresh),
             "access": str(access),
             "user_id": str(user.id),
             "email": user.email,
+            "org_id": org_id,
+            "role": role,   # 
         }
 
     def save(self):
@@ -551,12 +588,12 @@ class SetPasswordFromInvitationSerializer(serializers.Serializer):
     """Serializer for setting password from invitation"""
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
-    
+
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
             raise serializers.ValidationError("Passwords don't match.")
         return attrs
-    
+
     def validate_password(self, value):
         # Basic password validation
         if len(value) < 8:

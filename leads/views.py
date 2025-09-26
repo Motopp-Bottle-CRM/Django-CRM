@@ -17,6 +17,8 @@ from common.serializer import (
     LeadCommentSerializer,
     ProfileSerializer,
 )
+
+from rest_framework.parsers import MultiPartParser, FormParser
 from .forms import LeadListForm
 from .models import Company,Lead
 from common.utils import COUNTRIES, INDCHOICES, LEAD_SOURCE, LEAD_STATUS
@@ -31,6 +33,7 @@ from leads.serializer import (
     LeadSerializer,
     TagsSerializer,
     LeadCreateSwaggerSerializer,
+    LeadEditSwaggerSerializer,
     LeadDetailEditSwaggerSerializer,
     LeadCommentEditSwaggerSerializer,
     CreateLeadFromSiteSwaggerSerializer,
@@ -44,7 +47,7 @@ from leads.tasks import (
 )
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
-
+from common.decorator import role_required
 
 class LeadListView(APIView, LimitOffsetPagination):
     model = Lead
@@ -56,7 +59,7 @@ class LeadListView(APIView, LimitOffsetPagination):
             self.model.objects.filter(org=self.request.profile.org)
             .exclude(status="converted")
             .select_related("created_by")
-            .prefetch_related( 
+            .prefetch_related(
                 "tags",
                 "assigned_to",
             )
@@ -148,6 +151,7 @@ class LeadListView(APIView, LimitOffsetPagination):
         return context
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.lead_list_get_params)
+    @role_required("Leads")
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
@@ -155,6 +159,7 @@ class LeadListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Leads"],description="Leads Create", parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer
     )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
         print('test')
@@ -355,12 +360,14 @@ class LeadDetailView(APIView):
         return context
 
     @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params,description="Lead Detail")
+    @role_required("Leads")
     def get(self, request, pk, **kwargs):
         self.lead_obj = self.get_object(pk)
         context = self.get_context_data(**kwargs)
         return Response(context)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadDetailEditSwaggerSerializer)
+    @role_required("Leads")
     def post(self, request, pk, **kwargs):
         params = request.data
 
@@ -413,7 +420,8 @@ class LeadDetailView(APIView):
         )
         return Response(context)
 
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer)
+    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadEditSwaggerSerializer)
+    @role_required("Leads")
     def put(self, request, pk, **kwargs):
         params = request.data
         self.lead_obj = self.get_object(pk)
@@ -543,6 +551,7 @@ class LeadDetailView(APIView):
         )
 
     @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params, description="Lead Delete")
+    @role_required("Leads")
     def delete(self, request, pk, **kwargs):
         self.object = self.get_object(pk)
         if (
@@ -568,6 +577,7 @@ class LeadUploadView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadUploadSwaggerSerializer)
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
         lead_form = LeadListForm(request.POST, request.FILES)
         if lead_form.is_valid():
@@ -597,6 +607,7 @@ class LeadCommentView(APIView):
         return self.model.objects.get(pk=pk)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadCommentEditSwaggerSerializer)
+    @role_required("Leads")
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -625,6 +636,7 @@ class LeadCommentView(APIView):
         )
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params)
+    @role_required("Leads")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -645,6 +657,48 @@ class LeadCommentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+    @extend_schema(
+    tags=["Leads"],
+    parameters=swagger_params1.organization_params,
+    request=LeadCommentEditSwaggerSerializer,
+    responses=LeadCommentSerializer
+)
+    @role_required("Leads")
+    def post(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        lead_id = kwargs.get("pk") or data.get("lead")
+        if not lead_id:
+            return Response({"error": "Lead ID is required"}, status=400)
+
+        try:
+            lead_obj = Lead.objects.get(pk=lead_id)
+        except Lead.DoesNotExist:
+            return Response({"error": "Lead not found"}, status=404)
+
+        serializer = LeadCommentSerializer(data=data)
+        if serializer.is_valid():
+        # Pass the profile instance directly here
+            serializer.save(commented_by=request.profile, lead=lead_obj)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        responses=LeadCommentSerializer(many=True)
+    )
+    @role_required("Leads")
+    def get(self, request, pk, *args, **kwargs):
+        """Get all comments for a lead"""
+        try:
+            lead = Lead.objects.get(pk=pk)
+        except Lead.DoesNotExist:
+            return Response({"error": "Lead not found"}, status=404)
+
+        comments = Comment.objects.filter(lead=lead).order_by("-commented_on")
+        serializer = LeadCommentSerializer(comments, many=True)
+        return Response(serializer.data, status=200)
 
 
 class LeadAttachmentView(APIView):
@@ -653,6 +707,7 @@ class LeadAttachmentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params)
+    @role_required("Leads")
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
@@ -672,6 +727,39 @@ class LeadAttachmentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+    parser_classes = [MultiPartParser, FormParser]
+    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
+    @role_required("Leads")
+    def post(self, request, pk, *args, **kwargs):
+        """
+        Upload a new attachment for a lead
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        data = {
+        "attachment": request.data.get("attachment"),
+        "file_name": request.data.get("file_name")
+    }
+
+
+        serializer = AttachmentsSerializer(data=data, context={"lead": lead, "request": request})
+        if serializer.is_valid():
+            serializer.save(lead=lead)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        responses=AttachmentsSerializer(many=True),)
+    @role_required("Leads")
+    def get(self, request, pk, *args, **kwargs):
+        """
+        Get all attachments for a lead
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        attachments = lead.lead_attachment.all().order_by("-created_at")
+        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 class CreateLeadFromSite(APIView):
@@ -679,6 +767,7 @@ class CreateLeadFromSite(APIView):
         tags=["Leads"],
         parameters=swagger_params1.organization_params,request=CreateLeadFromSiteSwaggerSerializer
     )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
         params = request.data
         api_key = params.get("apikey")
@@ -745,7 +834,8 @@ class CompaniesView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(tags=["Company"],parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
+    @role_required("Companies")
     def get(self, request, *args, **kwargs):
         try:
             companies=Company.objects.filter(org=request.profile.org)
@@ -762,8 +852,9 @@ class CompaniesView(APIView):
 
 
     @extend_schema(
-        tags=["Company"],description="Company Create",parameters=swagger_params1.organization_params,request=CompanySwaggerSerializer
+        tags=["Companies"],description="Company Create",parameters=swagger_params1.organization_params,request=CompanySwaggerSerializer
     )
+    @role_required("Companies")
     def post(self, request, *args, **kwargs):
         request.data['org'] = request.profile.org.id
         print(request.data)
@@ -786,10 +877,10 @@ class CompaniesView(APIView):
             )
 
 class CompanyDetail(APIView):
-   
+
     permission_classes = (IsAuthenticated,)
 
-    
+
     def get_object(self, pk):
         try:
             return Company.objects.get(
@@ -798,7 +889,8 @@ class CompanyDetail(APIView):
         except Company.DoesNotExist:
             raise Http404
 
-    @extend_schema(tags=["Company"],parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
+    @role_required("Companies")
     def get(self, request, pk, format=None):
         company = self.get_object(pk)
         serializer = CompanySerializer(company)
@@ -806,7 +898,8 @@ class CompanyDetail(APIView):
                 {"error": False, "data": serializer.data},
                 status=status.HTTP_200_OK,
             )
-    @extend_schema(tags=["Company"],description="Company Update",parameters=swagger_params1.organization_params,request=CompanySerializer)
+    @extend_schema(tags=["Companies"],description="Company Update",parameters=swagger_params1.organization_params,request=CompanySerializer)
+    @role_required("Companies")
     def put(self, request, pk, format=None):
         company = self.get_object(pk)
         serializer = CompanySerializer(company, data=request.data)
@@ -820,7 +913,8 @@ class CompanyDetail(APIView):
                 {"error": True,'message': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-    @extend_schema(tags=["Company"],parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
+    @role_required("Companies")
     def delete(self, request, pk, format=None):
         company = self.get_object(pk)
         company.delete()
@@ -828,4 +922,3 @@ class CompanyDetail(APIView):
                 {"error": False, 'message': 'Deleted successfully'},
                 status=status.HTTP_200_OK,
             )
- 

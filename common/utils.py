@@ -67,8 +67,48 @@ TYPECHOICES = (
 
 ROLES = (
     ("ADMIN", "ADMIN"),
-    ("USER", "USER"),
+    ("SALES", "Sales"),
+    ("SALES_MANAGER", "Sales Manager"),
+    ("MARKETING", "Marketing"),   
+    ("MARKETING_MANAGER", "Marketing Manager"),
+    ("SUPPORT", "Support"),
 )
+
+ROLE_PERMISSIONS = {
+    "ADMIN": [
+        "Users",
+        "Contacts",
+        "Leads",
+        "Companies",
+        "Opportunities",
+        "Cases",
+        "Accounts",
+    ],
+    "SALES": [
+        "Leads",
+        "Opportunities",
+        "Accounts",
+        "Contacts",
+    ],
+    "SALES_MANAGER": [
+        "Leads",
+        "Opportunities",
+        "Accounts",
+        "Contacts",
+    ],
+    "MARKETING": [
+        "Contacts",
+        "Leads",
+    ],
+    "MARKETING_MANAGER": [
+        "Contacts",
+        "Leads",
+    ],
+    "SUPPORT": [
+        "Cases",
+        "Contacts",
+    ],
+}
 
 LEAD_STATUS = (
     ("assigned", "Assigned"),
