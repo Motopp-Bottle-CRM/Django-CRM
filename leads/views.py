@@ -173,8 +173,18 @@ class LeadListView(APIView, LimitOffsetPagination):
     @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
-        print("test")
         data = request.data
+        company_name = data.get("company")
+
+        if company_name:
+            company_obj, _ = Company.objects.get_or_create(
+                name=company_name,
+                org=request.profile.org,
+                defaults={"created_by": request.profile.user},
+            )
+
+            data["company"] = company_obj.id
+
         serializer = LeadCreateSerializer(data=data, request_obj=request)
         if serializer.is_valid():
             lead_obj = serializer.save(
