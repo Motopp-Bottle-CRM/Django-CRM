@@ -68,6 +68,9 @@ class CreateContactSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         if request_obj:
             self.org = request_obj.profile.org
+        # Make department and language optional
+        self.fields['department'].required = False
+        self.fields['language'].required = False
 
     def validate_first_name(self, first_name):
         if self.instance:

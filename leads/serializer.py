@@ -45,7 +45,7 @@ class LeadSerializer(serializers.ModelSerializer):
         return obj.get_country_display()
 
     def get_company_name(self, obj):
-        return obj.company.name if obj.company else None
+        return obj.company if obj.company else None
 
     class Meta:
         model = Lead
