@@ -163,6 +163,7 @@ class LeadListView(APIView, LimitOffsetPagination):
         context = self.get_context_data(**kwargs)
         return Response(context)
 
+
     @extend_schema(
         tags=["Leads"],
         description="Leads Create",
