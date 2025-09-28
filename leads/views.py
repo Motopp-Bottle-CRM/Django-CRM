@@ -467,6 +467,14 @@ class LeadDetailView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        company_name = params.get("company")
+        if company_name:
+            company_obj, _ = Company.objects.get_or_create(
+                name=company_name,
+                org=request.profile.org,
+                defaults={"created_by": request.profile.user},
+            )
+            params["company"] = company_obj.id
         serializer = LeadCreateSerializer(
             data=params,
             instance=self.lead_obj,
