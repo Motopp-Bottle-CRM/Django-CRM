@@ -130,7 +130,7 @@ LEAD_STATUS = (
 
 LEAD_SOURCE = (
     ("referrals", "Referrals & Recommendations"),
-    ("marketing", "Content, SEO, Blogs, Webinars"),
+    ("marketing", "Digital Content & SEO"),
     ("advertisement", "Paid Ads (Google, LinkedIn, Meta)"),
     ("networking", "Networking & Professional Platforms"),
     ("events", "Events & Trade Shows"),
