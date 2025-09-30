@@ -4,6 +4,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from rest_framework import status
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
+from common.permissions import IsInRoles
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -47,28 +48,61 @@ from leads.tasks import (
 )
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
-from common.decorator import role_required
 
+from common.decorator import role_required
+from django.utils.decorators import method_decorator
+
+ # @method_decorator(role_required("Leads"), name="dispatch")
 class LeadListView(APIView, LimitOffsetPagination):
     model = Lead
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Leads")]
 
     def get_context_data(self, **kwargs):
         params = self.request.query_params
+      
+          # my new roles based
         queryset = (
             self.model.objects.filter(org=self.request.profile.org)
             .exclude(status="converted")
             .select_related("created_by")
-            .prefetch_related(
-                "tags",
-                "assigned_to",
+            .prefetch_related("tags", "assigned_to")
+            .order_by("-id")
+        )
+
+        if self.request.profile.role == "SALES_MANAGER":
+            queryset = queryset.filter(
+                Q(assigned_to__role__in=["SALES", "SALES_MANAGER"])   # assigned_to is Profile
+                | Q(created_by__profile__role__in=["SALES", "SALES_MANAGER"])  # created_by is User → follow to Profile
             )
-        ).order_by("-id")
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+
+        elif self.request.profile.role == "MARKETING_MANAGER":
+            queryset = queryset.filter(
+                Q(assigned_to__role__in=["MARKETING", "MARKETING_MANAGER"])
+                | Q(created_by__profile__role__in=["MARKETING", "MARKETING_MANAGER"])
+            )
+
+        elif self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             queryset = queryset.filter(
                 Q(assigned_to__in=[self.request.profile])
                 | Q(created_by=self.request.profile.user)
             )
+
+        #  was  Tina 
+
+        # queryset = (
+        #     self.model.objects.filter(org=self.request.profile.org)
+        #     .exclude(status="converted")
+        #     .select_related("created_by")
+        #     .prefetch_related(
+        #         "tags",
+        #         "assigned_to",
+        #     )
+        # ).order_by("-id")
+        # if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        #     queryset = queryset.filter(
+        #         Q(assigned_to__in=[self.request.profile])
+        #         | Q(created_by=self.request.profile.user)
+        #     )
 
         if params:
             if params.get("name"):
@@ -151,7 +185,7 @@ class LeadListView(APIView, LimitOffsetPagination):
         return context
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.lead_list_get_params)
-    @role_required("Leads")
+   # @role_required("Leads")
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
@@ -159,7 +193,7 @@ class LeadListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Leads"],description="Leads Create", parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer
     )
-    @role_required("Leads")
+   # @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
         print('test')
@@ -261,11 +295,11 @@ class LeadListView(APIView, LimitOffsetPagination):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
+ # @method_decorator(role_required("Leads"), name="dispatch")
 class LeadDetailView(APIView):
     model = Lead
     #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Leads")]
 
     def get_object(self, pk):
         return get_object_or_404(Lead, id=pk)
@@ -278,15 +312,6 @@ class LeadDetailView(APIView):
         ]
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.user)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            if self.request.profile.id not in user_assgn_list:
-                return Response(
-                    {
-                        "error": True,
-                        "errors": "You do not have Permission to perform this action",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
 
         comments = Comment.objects.filter(lead=self.lead_obj).order_by("-id")
         attachments = Attachments.objects.filter(lead=self.lead_obj).order_by("-id")
@@ -360,14 +385,14 @@ class LeadDetailView(APIView):
         return context
 
     @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params,description="Lead Detail")
-    @role_required("Leads")
+   # @role_required("Leads")
     def get(self, request, pk, **kwargs):
         self.lead_obj = self.get_object(pk)
         context = self.get_context_data(**kwargs)
         return Response(context)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadDetailEditSwaggerSerializer)
-    @role_required("Leads")
+   # @role_required("Leads")
     def post(self, request, pk, **kwargs):
         params = request.data
 
@@ -421,7 +446,7 @@ class LeadDetailView(APIView):
         return Response(context)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadEditSwaggerSerializer)
-    @role_required("Leads")
+   # @role_required("Leads")
     def put(self, request, pk, **kwargs):
         params = request.data
         self.lead_obj = self.get_object(pk)
@@ -551,7 +576,7 @@ class LeadDetailView(APIView):
         )
 
     @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params, description="Lead Delete")
-    @role_required("Leads")
+   # @role_required("Leads")
     def delete(self, request, pk, **kwargs):
         self.object = self.get_object(pk)
         if (
@@ -570,14 +595,14 @@ class LeadDetailView(APIView):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-
+ # @method_decorator(role_required("Leads"), name="dispatch")
 class LeadUploadView(APIView):
     model = Lead
     #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Leads")]
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadUploadSwaggerSerializer)
-    @role_required("Leads")
+   # @role_required("Leads")
     def post(self, request, *args, **kwargs):
         lead_form = LeadListForm(request.POST, request.FILES)
         if lead_form.is_valid():
@@ -597,17 +622,17 @@ class LeadUploadView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
+ # @method_decorator(role_required("Leads"), name="dispatch")
 class LeadCommentView(APIView):
     model = Comment
     #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Leads")]
 
     def get_object(self, pk):
         return self.model.objects.get(pk=pk)
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadCommentEditSwaggerSerializer)
-    @role_required("Leads")
+   # @role_required("Leads")
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -636,7 +661,7 @@ class LeadCommentView(APIView):
         )
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params)
-    @role_required("Leads")
+   # @role_required("Leads")
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -663,7 +688,7 @@ class LeadCommentView(APIView):
     request=LeadCommentEditSwaggerSerializer,
     responses=LeadCommentSerializer
 )
-    @role_required("Leads")
+   # @role_required("Leads")
     def post(self, request, *args, **kwargs):
         data = request.data.copy()
 
@@ -688,7 +713,7 @@ class LeadCommentView(APIView):
         parameters=swagger_params1.organization_params,
         responses=LeadCommentSerializer(many=True)
     )
-    @role_required("Leads")
+   # @role_required("Leads")
     def get(self, request, pk, *args, **kwargs):
         """Get all comments for a lead"""
         try:
@@ -700,14 +725,13 @@ class LeadCommentView(APIView):
         serializer = LeadCommentSerializer(comments, many=True)
         return Response(serializer.data, status=200)
 
-
+ # @method_decorator(role_required("Leads"), name="dispatch")
 class LeadAttachmentView(APIView):
     model = Attachments
     #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
+    permission_classes = [IsAuthenticated, IsInRoles("Leads")]
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params)
-    @role_required("Leads")
+   # @role_required("Leads")
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
@@ -729,7 +753,7 @@ class LeadAttachmentView(APIView):
         )
     parser_classes = [MultiPartParser, FormParser]
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
-    @role_required("Leads")
+   # @role_required("Leads")
     def post(self, request, pk, *args, **kwargs):
         """
         Upload a new attachment for a lead
@@ -750,7 +774,7 @@ class LeadAttachmentView(APIView):
         tags=["Leads"],
         parameters=swagger_params1.organization_params,
         responses=AttachmentsSerializer(many=True),)
-    @role_required("Leads")
+   # @role_required("Leads")
     def get(self, request, pk, *args, **kwargs):
         """
         Get all attachments for a lead
@@ -761,13 +785,13 @@ class LeadAttachmentView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-
+ # @method_decorator(role_required("Leads"), name="dispatch")
 class CreateLeadFromSite(APIView):
     @extend_schema(
         tags=["Leads"],
         parameters=swagger_params1.organization_params,request=CreateLeadFromSiteSwaggerSerializer
     )
-    @role_required("Leads")
+   # @role_required("Leads")
     def post(self, request, *args, **kwargs):
         params = request.data
         api_key = params.get("apikey")
@@ -829,13 +853,13 @@ class CreateLeadFromSite(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
+ # @method_decorator(role_required("Companies"), name="dispatch")
 class CompaniesView(APIView):
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Companies")]
 
     @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
-    @role_required("Companies")
+   # @role_required("Companies")
     def get(self, request, *args, **kwargs):
         try:
             companies=Company.objects.filter(org=request.profile.org)
@@ -854,7 +878,7 @@ class CompaniesView(APIView):
     @extend_schema(
         tags=["Companies"],description="Company Create",parameters=swagger_params1.organization_params,request=CompanySwaggerSerializer
     )
-    @role_required("Companies")
+   # @role_required("Companies")
     def post(self, request, *args, **kwargs):
         request.data['org'] = request.profile.org.id
         print(request.data)
@@ -875,10 +899,10 @@ class CompaniesView(APIView):
                 {"error": True, "message": company.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+ # @method_decorator(role_required("Companies"), name="dispatch")
 class CompanyDetail(APIView):
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Companies")]
 
 
     def get_object(self, pk):
@@ -890,7 +914,7 @@ class CompanyDetail(APIView):
             raise Http404
 
     @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
-    @role_required("Companies")
+   # @role_required("Companies")
     def get(self, request, pk, format=None):
         company = self.get_object(pk)
         serializer = CompanySerializer(company)
@@ -899,7 +923,7 @@ class CompanyDetail(APIView):
                 status=status.HTTP_200_OK,
             )
     @extend_schema(tags=["Companies"],description="Company Update",parameters=swagger_params1.organization_params,request=CompanySerializer)
-    @role_required("Companies")
+   # @role_required("Companies")
     def put(self, request, pk, format=None):
         company = self.get_object(pk)
         serializer = CompanySerializer(company, data=request.data)
@@ -914,7 +938,7 @@ class CompanyDetail(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
     @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
-    @role_required("Companies")
+   # @role_required("Companies")
     def delete(self, request, pk, format=None):
         company = self.get_object(pk)
         company.delete()
