@@ -196,7 +196,6 @@ class LeadListView(APIView, LimitOffsetPagination):
    # @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
-        print('test')
         data = request.data
         serializer = LeadCreateSerializer(data=data, request_obj=request)
         if serializer.is_valid():
@@ -725,13 +724,13 @@ class LeadCommentView(APIView):
         serializer = LeadCommentSerializer(comments, many=True)
         return Response(serializer.data, status=200)
 
- # @method_decorator(role_required("Leads"), name="dispatch")
+
 class LeadAttachmentView(APIView):
     model = Attachments
-    #authentication_classes = (CustomDualAuthentication,)
+   
     permission_classes = [IsAuthenticated, IsInRoles("Leads")]
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params)
-   # @role_required("Leads")
+  
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (

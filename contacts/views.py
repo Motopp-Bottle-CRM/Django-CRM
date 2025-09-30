@@ -26,11 +26,12 @@ from contacts.tasks import send_email_to_assigned_user
 from tasks.serializer import TaskSerializer
 from teams.models import Teams
 from common.decorator import role_required
-
+from common.permissions import IsInRoles
+from rest_framework.parsers import MultiPartParser, FormParser
 
 class ContactsListView(APIView, LimitOffsetPagination):
     #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Contacts")]
     model = Contact
 
     def get_context_data(self, **kwargs):
@@ -83,7 +84,7 @@ class ContactsListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.contact_list_get_params
     )
-    @role_required("Contacts")
+    # #@role_required\("Contacts"\)
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
@@ -91,7 +92,7 @@ class ContactsListView(APIView, LimitOffsetPagination):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params,request=CreateContactSerializer
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def post(self, request, *args, **kwargs):
         params = request.data
         contact_serializer = CreateContactSerializer(data=params, request_obj=request)
@@ -145,7 +146,7 @@ class ContactsListView(APIView, LimitOffsetPagination):
 
 class ContactDetailView(APIView):
     # #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Contacts")]
     model = Contact
 
     def get_object(self, pk):
@@ -154,7 +155,7 @@ class ContactDetailView(APIView):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.contact_create_post_params,request=CreateContactSerializer
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def put(self, request, pk, format=None):
         data = request.data
         contact_obj = self.get_object(pk=pk)
@@ -245,7 +246,7 @@ class ContactDetailView(APIView):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def get(self, request, pk, format=None):
         context = {}
         contact_obj = self.get_object(pk)
@@ -315,7 +316,7 @@ class ContactDetailView(APIView):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if self.object.org != request.profile.org:
@@ -346,7 +347,7 @@ class ContactDetailView(APIView):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params,request=ContactDetailEditSwaggerSerializer
     )
-    @role_required("Contacts")  
+    #@role_required\("Contacts"\)  
     def post(self, request, pk, **kwargs):
         params = request.data
         context = {}
@@ -399,15 +400,41 @@ class ContactDetailView(APIView):
 class ContactCommentView(APIView):
     model = Comment
     # #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Contacts")]
 
     def get_object(self, pk):
         return self.model.objects.get(pk=pk)
+    @extend_schema(
+        tags=["Contacts"],
+        parameters=swagger_params1.organization_params,
+        request=ContactCommentEditSwaggerSerializer,
+        responses=CommentSerializer
+    )
+
+    def post(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        lead_id = kwargs.get("pk") or data.get("lead")
+        if not lead_id:
+            return Response({"error": "Lead ID is required"}, status=400)
+
+        try:
+            contact_obj = Contact.objects.get(pk=lead_id)
+        except Contact.DoesNotExist:
+            return Response({"error": "Contact not found"}, status=404)
+
+        serializer = CommentSerializer(data=data)
+        if serializer.is_valid():
+        # Pass the profile instance directly here
+            serializer.save(commented_by=request.profile, contact=contact_obj)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
 
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params,request=ContactCommentEditSwaggerSerializer
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -438,7 +465,7 @@ class ContactCommentView(APIView):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
@@ -463,12 +490,9 @@ class ContactCommentView(APIView):
 class ContactAttachmentView(APIView):
     model = Attachments
     # #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Contacts")]
 
-    @extend_schema(
-        tags=["Contacts"], parameters=swagger_params1.organization_params
-    )
-    @role_required("Contacts")
+    @extend_schema(tags=["Contacts"], parameters=swagger_params1.organization_params)  
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
@@ -488,3 +512,29 @@ class ContactAttachmentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+
+
+    parser_classes = [MultiPartParser, FormParser]
+    @extend_schema(tags=["Contacts"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
+    def post(self, request, pk, *args, **kwargs):
+        contact = get_object_or_404(Contact, pk=pk)
+        data = {
+            "attachment": request.data.get("attachment"),
+            "file_name": request.data.get("file_name")
+            }
+        serializer = AttachmentsSerializer(data=data, context={"contact": contact, "request": request})
+        if serializer.is_valid():
+            serializer.save(contact=contact)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+   
+    @extend_schema(tags=["Contacts"],
+            parameters=swagger_params1.organization_params,
+            responses=AttachmentsSerializer(many=True),)
+    
+    def get(self, request, pk, *args, **kwargs):
+        contact = get_object_or_404(Contact, pk=pk)
+        attachments = contact.contact_attachment.all().order_by("-created_at")
+        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
