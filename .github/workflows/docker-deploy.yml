@@ -2,7 +2,7 @@ name: Build & Push (develop/manual)
 
 on:
   push:
-    branches: ["develop"]
+    branches: ["develop", "update_gitflow"]
   workflow_dispatch:
     inputs:
       tag:
