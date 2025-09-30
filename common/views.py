@@ -160,7 +160,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                 user_serializer = CreateUserSerializer(
                     data=params, org=request.profile.org
                 )
-                address_serializer = BillingAddressSerializer(data=params)
+                address_serializer = BillingAddressSerializer(data=params, user_creation=True)
                 profile_serializer = CreateProfileSerializer(data=params)
                 data = {}
                 if not user_serializer.is_valid():
@@ -181,7 +181,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                     existing_user = User.objects.filter(email=params.get("email")).first()
                     if existing_user:
                         return Response(
-                            {"error": True, "errors": {"email": "User with this email already exists"}},
+                            {"error": True, "errors": {"user_errors": {"email": ["User with this email already exists"]}}},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
@@ -370,7 +370,7 @@ class UserDetailView(APIView):
         serializer = CreateUserSerializer(
             data=params, instance=profile.user, org=request.profile.org
         )
-        address_serializer = BillingAddressSerializer(data=params, instance=address_obj)
+        address_serializer = BillingAddressSerializer(data=params, instance=address_obj, user_creation=True)
         profile_serializer = CreateProfileSerializer(data=params, instance=profile)
         data = {}
         if not serializer.is_valid():
@@ -645,9 +645,9 @@ class ProfileView(APIView):
         # Initialize serializers
         serializer = CreateUserSerializer(data=params, instance=profile.user, org=profile.org)
         if address_obj:
-            address_serializer = BillingAddressSerializer(data=params, instance=address_obj)
+            address_serializer = BillingAddressSerializer(data=params, instance=address_obj, user_creation=True)
         else:
-            address_serializer = BillingAddressSerializer(data=params)
+            address_serializer = BillingAddressSerializer(data=params, user_creation=True)
 
         profile_serializer = CreateProfileSerializer(data=params, instance=profile)
 
