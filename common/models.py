@@ -22,9 +22,9 @@ from common.templatetags.common_tags import (
     is_document_file_video,
     is_document_file_zip,
 )
-from common.utils import COUNTRIES, ROLES
+from common.utils import COUNTRIES, ROLES, ROLE_PERMISSIONS
 from common.base import BaseModel
-
+           
 
 def img_url(self, filename):
     hash_ = int(time.time())
@@ -69,7 +69,7 @@ class Address(BaseModel):
     address_line = models.CharField(
         _("Address"), max_length=255, blank=True, default=""
     )
-    street = models.CharField(_("Street"), max_length=55, blank=True, default="")
+    street = models.CharField(_("Street"), max_length=55, blank=True, default="" )
     city = models.CharField(_("City"), max_length=255, blank=True, default="")
     state = models.CharField(_("State"), max_length=255, blank=True, default="")
     postcode = models.CharField(
@@ -229,7 +229,7 @@ class Profile(BaseModel):
 
     @property
     def permissions(self):
-            from common.utils import ROLE_PERMISSIONS
+          
             return ROLE_PERMISSIONS.get(self.role, [])
 
     def has_access(self, module_name: str) -> bool:

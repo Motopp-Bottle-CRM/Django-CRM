@@ -86,12 +86,14 @@ ROLE_PERMISSIONS = {
     ],
     "SALES": [
         "Leads",
+        "Companies",
         "Opportunities",
         "Accounts",
         "Contacts",
     ],
     "SALES_MANAGER": [
         "Leads",
+        "Companies",
         "Opportunities",
         "Accounts",
         "Contacts",
@@ -99,35 +101,51 @@ ROLE_PERMISSIONS = {
     "MARKETING": [
         "Contacts",
         "Leads",
+        "Companies",
     ],
     "MARKETING_MANAGER": [
         "Contacts",
         "Leads",
+        "Companies",
     ],
     "SUPPORT": [
         "Cases",
         "Contacts",
     ],
 }
+ROLE_PERMISSIONS_SHOW = (
+    ("ADMIN", ("ALL - Users  Contacts Leads Companies Opportunities Cases Accounts")),
+    ("SALES / SALES_MANAGER", ("Leads Companies Opportunities Accounts Contacts")),
+    ("MARKETING / MARKETING_MANAGER", ("Contacts Leads Companies")),
+    ("SUPPORT", ("Cases Contacts")),
+)
 
 LEAD_STATUS = (
     ("assigned", "Assigned"),
-    ("in process", "In Process"),
+    ("in_process", "In Process"),
     ("converted", "Converted"),
     ("recycled", "Recycled"),
     ("closed", "Closed"),
 )
 
-
 LEAD_SOURCE = (
-    ("call", "Call"),
-    ("email", "Email"),
-    ("existing customer", "Existing Customer"),
-    ("partner", "Partner"),
-    ("public relations", "Public Relations"),
-    ("compaign", "Campaign"),
+    ("referrals", "Referrals & Recommendations"),
+    ("marketing", "Digital Content & SEO"),
+    ("advertisement", "Paid Ads (Google, LinkedIn, Meta)"),
+    ("networking", "Networking & Professional Platforms"),
+    ("events", "Events & Trade Shows"),
+    ("campaign", "Email/Call Campaigns"),
     ("other", "Other"),
 )
+# LEAD_SOURCE = (
+#     ("call", "Call"),
+#     ("email", "Email"),
+#     ("existing customer", "Existing Customer"),
+#     ("partner", "Partner"),
+#     ("public relations", "Public Relations"),
+#     ("compaign", "Campaign"),
+#     ("other", "Other"),
+# )
 
 STATUS_CHOICE = (
     ("New", "New"),

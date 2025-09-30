@@ -1,4 +1,4 @@
-# common/decorators.py
+
 from functools import wraps
 from common.models import Profile
 from django.http import JsonResponse
