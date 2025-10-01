@@ -196,7 +196,6 @@ class LeadListView(APIView, LimitOffsetPagination):
    # @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
-        print('test')
         data = request.data
         serializer = LeadCreateSerializer(data=data, request_obj=request)
         if serializer.is_valid():
@@ -312,7 +311,17 @@ class LeadDetailView(APIView):
         ]
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.user)
+        if self.request.profile.role == "SALES_MANAGER":
+            user_assgn_list.append(self.request.profile.id)
+            user_assgn_list.extend(
+                Profile.objects.filter(role="SALES", org=self.request.profile.org)
+                .values_list("id", flat=True))
+        if self.request.profile.role == "MARKETING_MANAGER":
+            user_assgn_list.append(self.request.profile.id)
+            user_assgn_list.extend(
+                Profile.objects.filter(role="MARKETING", org=self.request.profile.org).values_list("id", flat=True))
 
+        
         comments = Comment.objects.filter(lead=self.lead_obj).order_by("-id")
         attachments = Attachments.objects.filter(lead=self.lead_obj).order_by("-id")
         assigned_data = []
@@ -329,7 +338,7 @@ class LeadDetailView(APIView):
                 )
             )
         elif self.request.profile.user != self.lead_obj.created_by:
-            users_mention = [{"username": self.lead_obj.created_by.username}]
+            users_mention = [{"username": self.lead_obj.created_by.email}]
         else:
             users_mention = list(
                 self.lead_obj.assigned_to.all().values("user__email")
@@ -342,10 +351,10 @@ class LeadDetailView(APIView):
             users = Profile.objects.filter(role="ADMIN", org=self.request.profile.org).order_by(
                 "user__email"
             )
-        user_assgn_list = [
-            assigned_to.id
-            for assigned_to in self.lead_obj.get_assigned_users_not_in_teams
-        ]
+        # user_assgn_list = [
+        #     assigned_to.id
+        #     for assigned_to in self.lead_obj.get_assigned_users_not_in_teams
+        # ]
 
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.id)
@@ -725,13 +734,13 @@ class LeadCommentView(APIView):
         serializer = LeadCommentSerializer(comments, many=True)
         return Response(serializer.data, status=200)
 
- # @method_decorator(role_required("Leads"), name="dispatch")
+
 class LeadAttachmentView(APIView):
     model = Attachments
-    #authentication_classes = (CustomDualAuthentication,)
+   
     permission_classes = [IsAuthenticated, IsInRoles("Leads")]
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params)
-   # @role_required("Leads")
+   
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
