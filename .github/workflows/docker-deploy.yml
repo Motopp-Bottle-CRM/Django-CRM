@@ -1,8 +1,9 @@
-name: Build & Push (develop/manual)
+name: Build & Push (main/develop/tags/manual)
 
 on:
   push:
-    branches: ["develop", "update_gitflow"]
+    branches: ["main", "develop"]
+    tags: ["*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -48,8 +49,12 @@ jobs:
         with:
           images: docker.io/${{ env.IMAGE_NAME }}
           tags: |
+            # auto on main
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             # auto on develop
             type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            # auto on tag
+            type=ref,event=tag
             # manual input tag
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
             # always also push a sha tag
