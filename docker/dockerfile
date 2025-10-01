@@ -8,8 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
+    dos2unix \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* 
 
 
 
@@ -26,6 +27,7 @@ COPY . /app
 # Copy entrypoint and wait-for-postgres scripts
 COPY docker/entrypoint.sh /app/
 COPY docker/wait-for-postgres.sh /app/
+RUN dos2unix /app/*.sh
 RUN chmod +x /app/entrypoint.sh /app/wait-for-postgres.sh
 
 # Set environment variables
