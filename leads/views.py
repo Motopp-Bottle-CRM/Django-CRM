@@ -7,11 +7,12 @@ from rest_framework.permissions import IsAuthenticated
 from common.permissions import IsInRoles
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import transaction, IntegrityError
 
 from accounts.models import Account, Tags
 from common.models import APISettings, Attachments, Comment, Profile
 
-#from common.external_auth import CustomDualAuthentication
+# from common.external_auth import CustomDualAuthentication
 from common.serializer import (
     AttachmentsSerializer,
     CommentSerializer,
@@ -21,12 +22,16 @@ from common.serializer import (
 
 from rest_framework.parsers import MultiPartParser, FormParser
 from .forms import LeadListForm
-from .models import Company,Lead
+from .models import Company, Lead
 from common.utils import COUNTRIES, INDCHOICES, LEAD_SOURCE, LEAD_STATUS
 from contacts.models import Contact
 from leads import swagger_params1
 from leads.forms import LeadListForm
 from leads.models import Company, Lead
+from accounts.models import Account
+from contacts.models import Contact
+from common.models import Address
+
 from leads.serializer import (
     CompanySerializer,
     CompanySwaggerSerializer,
@@ -38,7 +43,8 @@ from leads.serializer import (
     LeadDetailEditSwaggerSerializer,
     LeadCommentEditSwaggerSerializer,
     CreateLeadFromSiteSwaggerSerializer,
-    LeadUploadSwaggerSerializer
+    LeadUploadSwaggerSerializer,
+    LeadStatusUpdateSwaggerSerializer,
 )
 from common.models import User
 from leads.tasks import (
@@ -59,7 +65,7 @@ class LeadListView(APIView, LimitOffsetPagination):
 
     def get_context_data(self, **kwargs):
         params = self.request.query_params
-      
+
           # my new roles based
         queryset = (
             self.model.objects.filter(org=self.request.profile.org)
@@ -87,7 +93,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                 | Q(created_by=self.request.profile.user)
             )
 
-        #  was  Tina 
+        #  was  Tina
 
         # queryset = (
         #     self.model.objects.filter(org=self.request.profile.org)
@@ -176,9 +182,9 @@ class LeadListView(APIView, LimitOffsetPagination):
         ).data
         context["tags"] = TagsSerializer(Tags.objects.all(), many=True).data
 
-        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
-            "id", "user__email"
-        )
+        users = Profile.objects.filter(
+            is_active=True, org=self.request.profile.org
+        ).values("id", "user__email")
         context["users"] = users
         context["countries"] = COUNTRIES
         context["industries"] = INDCHOICES
@@ -190,18 +196,34 @@ class LeadListView(APIView, LimitOffsetPagination):
         context = self.get_context_data(**kwargs)
         return Response(context)
 
+
     @extend_schema(
-        tags=["Leads"],description="Leads Create", parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer
+        tags=["Leads"],
+        description="Leads Create",
+        parameters=swagger_params1.organization_params,
+        request=LeadCreateSwaggerSerializer,
     )
    # @role_required("Leads")
     def post(self, request, *args, **kwargs):
 
         data = request.data
+        company_name = data.get("company")
+
+        if company_name:
+            company_obj, _ = Company.objects.get_or_create(
+                name=company_name,
+                org=request.profile.org,
+                defaults={"created_by": request.profile.user},
+            )
+
+            data["company"] = company_obj.id
+
         serializer = LeadCreateSerializer(data=data, request_obj=request)
         if serializer.is_valid():
-            lead_obj = serializer.save(created_by=request.profile.user
-            , org=request.profile.org)
-            if data.get("tags",None):
+            lead_obj = serializer.save(
+                created_by=request.profile.user, org=request.profile.org
+            )
+            if data.get("tags", None):
                 tags = data.get("tags")
                 for t in tags:
                     tag = Tags.objects.filter(slug=t.lower())
@@ -211,7 +233,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                         tag = Tags.objects.create(name=t)
                     lead_obj.tags.add(tag)
 
-            if data.get("contacts",None):
+            if data.get("contacts", None):
                 obj_contact = Contact.objects.filter(
                     id__in=data.get("contacts"), org=request.profile.org
                 )
@@ -231,12 +253,12 @@ class LeadListView(APIView, LimitOffsetPagination):
                 attachment.attachment = request.FILES.get("lead_attachment")
                 attachment.save()
 
-            if data.get("teams",None):
+            if data.get("teams", None):
                 teams_list = data.get("teams")
                 teams = Teams.objects.filter(id__in=teams_list, org=request.profile.org)
                 lead_obj.teams.add(*teams)
 
-            if data.get("assigned_to",None):
+            if data.get("assigned_to", None):
                 assinged_to_list = data.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
@@ -271,7 +293,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                 for tag in lead_obj.tags.all():
                     account_object.tags.add(tag)
 
-                if data.get("assigned_to",None):
+                if data.get("assigned_to", None):
                     assigned_to_list = data.getlist("assigned_to")
                     recipients = assigned_to_list
                     send_email_to_assigned_user.delay(
@@ -333,16 +355,14 @@ class LeadDetailView(APIView):
 
         if self.request.user.is_superuser or self.request.profile.role == "ADMIN":
             users_mention = list(
-                Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
-                    "user__email"
-                )
+                Profile.objects.filter(
+                    is_active=True, org=self.request.profile.org
+                ).values("user__email")
             )
         elif self.request.profile.user != self.lead_obj.created_by:
             users_mention = [{"username": self.lead_obj.created_by.email}]
         else:
-            users_mention = list(
-                self.lead_obj.assigned_to.all().values("user__email")
-            )
+            users_mention = list(self.lead_obj.assigned_to.all().values("user__email"))
         if self.request.profile.role == "ADMIN" or self.request.user.is_superuser:
             users = Profile.objects.filter(
                 is_active=True, org=self.request.profile.org
@@ -393,15 +413,23 @@ class LeadDetailView(APIView):
 
         return context
 
-    @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params,description="Lead Detail")
-   # @role_required("Leads")
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        description="Lead Detail",
+    )
+    @role_required("Leads")
     def get(self, request, pk, **kwargs):
         self.lead_obj = self.get_object(pk)
         context = self.get_context_data(**kwargs)
         return Response(context)
 
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadDetailEditSwaggerSerializer)
-   # @role_required("Leads")
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=LeadDetailEditSwaggerSerializer,
+    )
+    @role_required("Leads")
     def post(self, request, pk, **kwargs):
         params = request.data
 
@@ -434,7 +462,9 @@ class LeadDetailView(APIView):
 
             if self.request.FILES.get("lead_attachment"):
                 attachment = Attachments()
-                attachment.created_by = User.objects.get(id=self.request.profile.user.id)
+                attachment.created_by = User.objects.get(
+                    id=self.request.profile.user.id
+                )
 
                 attachment.file_name = self.request.FILES.get("lead_attachment").name
                 attachment.lead = self.lead_obj
@@ -454,8 +484,12 @@ class LeadDetailView(APIView):
         )
         return Response(context)
 
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadEditSwaggerSerializer)
-   # @role_required("Leads")
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=LeadEditSwaggerSerializer,
+    )
+    @role_required("Leads")
     def put(self, request, pk, **kwargs):
         params = request.data
         self.lead_obj = self.get_object(pk)
@@ -467,6 +501,14 @@ class LeadDetailView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        company_name = params.get("company")
+        if company_name:
+            company_obj, _ = Company.objects.get_or_create(
+                name=company_name,
+                org=request.profile.org,
+                defaults={"created_by": request.profile.user},
+            )
+            params["company"] = company_obj.id
         serializer = LeadCreateSerializer(
             data=params,
             instance=self.lead_obj,
@@ -584,15 +626,18 @@ class LeadDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    @extend_schema(tags=["Leads"],parameters=swagger_params1.organization_params, description="Lead Delete")
-   # @role_required("Leads")
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        description="Lead Delete",
+    )
+    @role_required("Leads")
     def delete(self, request, pk, **kwargs):
         self.object = self.get_object(pk)
         if (
             request.profile.role == "ADMIN"
             or request.user.is_superuser
-            or request.profile.user
-             == self.object.created_by
+            or request.profile.user == self.object.created_by
         ) and self.object.org == request.profile.org:
             self.object.delete()
             return Response(
@@ -610,8 +655,12 @@ class LeadUploadView(APIView):
     #authentication_classes = (CustomDualAuthentication,)
     permission_classes = [IsAuthenticated, IsInRoles("Leads")]
 
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadUploadSwaggerSerializer)
-   # @role_required("Leads")
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=LeadUploadSwaggerSerializer,
+    )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
         lead_form = LeadListForm(request.POST, request.FILES)
         if lead_form.is_valid():
@@ -640,8 +689,12 @@ class LeadCommentView(APIView):
     def get_object(self, pk):
         return self.model.objects.get(pk=pk)
 
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadCommentEditSwaggerSerializer)
-   # @role_required("Leads")
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=LeadCommentEditSwaggerSerializer,
+    )
+    @role_required("Leads")
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -691,13 +744,14 @@ class LeadCommentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+
     @extend_schema(
-    tags=["Leads"],
-    parameters=swagger_params1.organization_params,
-    request=LeadCommentEditSwaggerSerializer,
-    responses=LeadCommentSerializer
-)
-   # @role_required("Leads")
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=LeadCommentEditSwaggerSerializer,
+        responses=LeadCommentSerializer,
+    )
+    @role_required("Leads")
     def post(self, request, *args, **kwargs):
         data = request.data.copy()
 
@@ -712,7 +766,7 @@ class LeadCommentView(APIView):
 
         serializer = LeadCommentSerializer(data=data)
         if serializer.is_valid():
-        # Pass the profile instance directly here
+            # Pass the profile instance directly here
             serializer.save(commented_by=request.profile, lead=lead_obj)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
@@ -720,7 +774,7 @@ class LeadCommentView(APIView):
     @extend_schema(
         tags=["Leads"],
         parameters=swagger_params1.organization_params,
-        responses=LeadCommentSerializer(many=True)
+        responses=LeadCommentSerializer(many=True),
     )
    # @role_required("Leads")
     def get(self, request, pk, *args, **kwargs):
@@ -760,45 +814,56 @@ class LeadAttachmentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+
     parser_classes = [MultiPartParser, FormParser]
-    @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
-   # @role_required("Leads")
+
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=AttachmentsSerializer,
+    )
+    @role_required("Leads")
     def post(self, request, pk, *args, **kwargs):
         """
         Upload a new attachment for a lead
         """
         lead = get_object_or_404(Lead, pk=pk)
         data = {
-        "attachment": request.data.get("attachment"),
-        "file_name": request.data.get("file_name")
-    }
+            "attachment": request.data.get("attachment"),
+            "file_name": request.data.get("file_name"),
+        }
 
-
-        serializer = AttachmentsSerializer(data=data, context={"lead": lead, "request": request})
+        serializer = AttachmentsSerializer(
+            data=data, context={"lead": lead, "request": request}
+        )
         if serializer.is_valid():
             serializer.save(lead=lead)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     @extend_schema(
         tags=["Leads"],
         parameters=swagger_params1.organization_params,
-        responses=AttachmentsSerializer(many=True),)
-   # @role_required("Leads")
+        responses=AttachmentsSerializer(many=True),
+    )
+    @role_required("Leads")
     def get(self, request, pk, *args, **kwargs):
         """
         Get all attachments for a lead
         """
         lead = get_object_or_404(Lead, pk=pk)
         attachments = lead.lead_attachment.all().order_by("-created_at")
-        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
+        serializer = AttachmentsSerializer(
+            attachments, many=True, context={"request": request}
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
- # @method_decorator(role_required("Leads"), name="dispatch")
 class CreateLeadFromSite(APIView):
     @extend_schema(
         tags=["Leads"],
-        parameters=swagger_params1.organization_params,request=CreateLeadFromSiteSwaggerSerializer
+        parameters=swagger_params1.organization_params,
+        request=CreateLeadFromSiteSwaggerSerializer,
     )
    # @role_required("Leads")
     def post(self, request, *args, **kwargs):
@@ -867,31 +932,33 @@ class CompaniesView(APIView):
 
     permission_classes = [IsAuthenticated, IsInRoles("Companies")]
 
-    @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
-   # @role_required("Companies")
+    @extend_schema(tags=["Companies"], parameters=swagger_params1.organization_params)
+    @role_required("Companies")
     def get(self, request, *args, **kwargs):
         try:
-            companies=Company.objects.filter(org=request.profile.org)
-            serializer=CompanySerializer(companies,many=True)
+            companies = Company.objects.filter(org=request.profile.org)
+            serializer = CompanySerializer(companies, many=True)
             return Response(
-                    {"error": False, "data": serializer.data},
-                    status=status.HTTP_200_OK,
-                )
+                {"error": False, "data": serializer.data},
+                status=status.HTTP_200_OK,
+            )
         except:
             return Response(
                 {"error": True, "message": "Organization is missing"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-
     @extend_schema(
-        tags=["Companies"],description="Company Create",parameters=swagger_params1.organization_params,request=CompanySwaggerSerializer
+        tags=["Companies"],
+        description="Company Create",
+        parameters=swagger_params1.organization_params,
+        request=CompanySwaggerSerializer,
     )
    # @role_required("Companies")
     def post(self, request, *args, **kwargs):
-        request.data['org'] = request.profile.org.id
+        request.data["org"] = request.profile.org.id
         print(request.data)
-        company=CompanySerializer(data=request.data)
+        company = CompanySerializer(data=request.data)
         if Company.objects.filter(**request.data).exists():
             return Response(
                 {"error": True, "message": "This data already exists"},
@@ -908,7 +975,8 @@ class CompaniesView(APIView):
                 {"error": True, "message": company.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
- # @method_decorator(role_required("Companies"), name="dispatch")
+
+
 class CompanyDetail(APIView):
 
     permission_classes = [IsAuthenticated, IsInRoles("Companies")]
@@ -916,42 +984,156 @@ class CompanyDetail(APIView):
 
     def get_object(self, pk):
         try:
-            return Company.objects.get(
-                pk=pk
-            )
+            return Company.objects.get(pk=pk)
         except Company.DoesNotExist:
             raise Http404
 
-    @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
-   # @role_required("Companies")
+    @extend_schema(tags=["Companies"], parameters=swagger_params1.organization_params)
+    @role_required("Companies")
     def get(self, request, pk, format=None):
         company = self.get_object(pk)
         serializer = CompanySerializer(company)
         return Response(
-                {"error": False, "data": serializer.data},
-                status=status.HTTP_200_OK,
-            )
-    @extend_schema(tags=["Companies"],description="Company Update",parameters=swagger_params1.organization_params,request=CompanySerializer)
-   # @role_required("Companies")
+            {"error": False, "data": serializer.data},
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        tags=["Companies"],
+        description="Company Update",
+        parameters=swagger_params1.organization_params,
+        request=CompanySerializer,
+    )
+    @role_required("Companies")
     def put(self, request, pk, format=None):
         company = self.get_object(pk)
         serializer = CompanySerializer(company, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(
-                {"error": False, "data": serializer.data,'message': 'Updated Successfully'},
+                {
+                    "error": False,
+                    "data": serializer.data,
+                    "message": "Updated Successfully",
+                },
                 status=status.HTTP_200_OK,
             )
         return Response(
-                {"error": True,'message': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-    @extend_schema(tags=["Companies"],parameters=swagger_params1.organization_params)
-   # @role_required("Companies")
+            {"error": True, "message": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @extend_schema(tags=["Companies"], parameters=swagger_params1.organization_params)
+    @role_required("Companies")
     def delete(self, request, pk, format=None):
         company = self.get_object(pk)
         company.delete()
         return Response(
-                {"error": False, 'message': 'Deleted successfully'},
-                status=status.HTTP_200_OK,
+            {"error": False, "message": "Deleted successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+
+class LeadStatusUpdateView(APIView):
+    model = Lead
+    # authentication_classes = (CustomDualAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self, pk):
+        return get_object_or_404(Lead, id=pk)
+
+    @extend_schema(
+        tags=["Leads"],
+        parameters=swagger_params1.organization_params,
+        request=LeadStatusUpdateSwaggerSerializer,
+    )
+    def put(self, request, pk):
+        try:
+            lead = Lead.objects.get(pk=pk)
+        except Lead.DoesNotExist:
+            return Response(
+                {"detail": "Lead not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+        serializer = LeadStatusUpdateSwaggerSerializer(
+            lead, data=request.data, partial=True
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer.save()  # ✅ mark Lead as converted
+
+        company_name = lead.company.name if lead.company else None
+        org = request.profile.org.id
+        user = request.profile.user.id
+
+        try:
+            with transaction.atomic():
+
+                contact_address = Address.objects.create(
+                    address_line=lead.address_line,
+                    street=lead.street,
+                    city=lead.city,
+                    state=lead.state,
+                    postcode=lead.postcode,
+                    country=lead.country,
+                    created_by_id=user,
+                )
+
+                contact, contact_created = Contact.objects.get_or_create(
+                    primary_email=lead.email,
+                    org_id=request.profile.org.id,
+                    defaults={
+                        "first_name": lead.first_name,
+                        "last_name": lead.last_name,
+                        "organization": company_name,
+                        "title": company_name,
+                        "mobile_number": lead.phone,
+                        "secondary_number": lead.phone,
+                        "address_id": contact_address.id,
+                        "created_by_id": user,
+                        "country": lead.country,
+                    },
+                )
+
+            account, account_created = Account.objects.get_or_create(
+                name=company_name,
+                org_id=request.profile.org.id,
+                defaults={
+                    "website": lead.website,
+                    "email": lead.email,
+                    "industry": lead.industry,
+                    "phone": lead.phone,
+                    "contact_name": f"{contact.first_name} {contact.last_name}",  # required field
+                    "billing_address_line": lead.address_line,
+                    "billing_street": lead.street,
+                    "billing_city": lead.city,
+                    "billing_state": lead.state,
+                    "billing_postcode": lead.postcode,
+                    "billing_country": lead.country,
+                    "status": "open",
+                    "lead_id": lead.id,
+                    "created_by_id": user,
+                },
+            )
+
+
+            if not account.contacts.filter(id=contact.id).exists():
+                account.contacts.add(contact)
+
+        except IntegrityError:
+            return Response(
+                {"detail": "Could not convert lead due to database constraint"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": "Lead converted successfully",
+                "account_id": account.id,
+                "contact_id": contact.id,
+                "account_created": account_created,
+                "contact_created": contact_created,
+            },
+            status=status.HTTP_200_OK,
+        )

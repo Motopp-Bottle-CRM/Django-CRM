@@ -78,7 +78,6 @@ class Lead(BaseModel):
         null=False,
         blank=False,
         related_name="lead_company",
-    
     )
     skype_ID = models.CharField(max_length=100, null=True, blank=True)
     linkedin_id = models.CharField(max_length=100, null=True, blank=True)

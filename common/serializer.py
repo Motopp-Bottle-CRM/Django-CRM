@@ -236,6 +236,16 @@ class CreateProfileSerializer(serializers.ModelSerializer):
             return cleaned_phone
         return value
 
+    def validate(self, attrs):
+        """Cross-field validation to ensure alternate phone differs from phone."""
+        phone = attrs.get("phone")
+        alternate_phone = attrs.get("alternate_phone")
+        if phone and alternate_phone and phone == alternate_phone:
+            raise serializers.ValidationError({
+                "alternate_phone": "Alternate phone cannot be the same as phone"
+            })
+        return attrs
+
 
 class UserSerializer(serializers.ModelSerializer):
 
