@@ -5,6 +5,7 @@ from common.serializer import (
     BillingAddressSerializer,
     OrganizationSerializer,
     ProfileSerializer,
+    UserSerializer,
 )
 from contacts.models import Contact
 from teams.serializer import TeamsSerializer
@@ -21,6 +22,7 @@ class ContactSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField()
     org = OrganizationSerializer()
     country = serializers.SerializerMethodField()
+    created_by = UserSerializer()  # new added
 
     def get_country(self, obj):
         return obj.get_country_display()

@@ -414,12 +414,12 @@ class ContactCommentView(APIView):
     def post(self, request, *args, **kwargs):
         data = request.data.copy()
 
-        lead_id = kwargs.get("pk") or data.get("lead")
-        if not lead_id:
-            return Response({"error": "Lead ID is required"}, status=400)
+        contact_id = kwargs.get("pk") or data.get("contact")
+        if not contact_id:
+            return Response({"error": "Contact id is required"}, status=400)
 
         try:
-            contact_obj = Contact.objects.get(pk=lead_id)
+            contact_obj = Contact.objects.get(pk=contact_id)
         except Contact.DoesNotExist:
             return Response({"error": "Contact not found"}, status=404)
 
