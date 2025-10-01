@@ -104,13 +104,14 @@ class EmailLogSerializer(serializers.ModelSerializer):
 
 
 class AccountReadSerializer(serializers.ModelSerializer):
+    contacts = ContactSerializer(read_only=True, many=True)
 
     class Meta:
         model = Account
-        fields = ["name", "billing_city", "tags"]
+        fields = ["name", "billing_city", "tags","contacts"]
 
 class AccountWriteSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
         model = Account
         fields = ["name","phone", "email", "billing_address_line","billing_street","billing_city", "billing_state", "billing_postcode","billing_country","contacts", "teams", "assigned_to","tags","account_attachment", "website", "status","lead"]

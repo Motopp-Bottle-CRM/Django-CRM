@@ -45,7 +45,7 @@ class LeadSerializer(serializers.ModelSerializer):
         return obj.get_country_display()
 
     def get_company_name(self, obj):
-        return obj.company if obj.company else None
+        return obj.company.name if obj.company else None
 
     class Meta:
         model = Lead
@@ -231,4 +231,16 @@ class LeadCommentEditSwaggerSerializer(serializers.Serializer):
 
 class LeadUploadSwaggerSerializer(serializers.Serializer):
     leads_file = serializers.FileField()
+
+class LeadStatusUpdateSwaggerSerializer(serializers.ModelSerializer):
+    status = serializers.CharField()
+    class Meta:
+        model = Lead
+        fields = ["status" ]
+
+    def validate_status(self, status):
+        if status.lower() != "converted":
+            raise serializers.ValidationError("Status can only be changed to 'converted'")
+        return status
+
 

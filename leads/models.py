@@ -72,7 +72,13 @@ class Lead(BaseModel):
     org = models.ForeignKey(
         Org, on_delete=models.SET_NULL, null=True, blank=True, related_name="lead_org"
     )
-    company = models.CharField(_("Company"), max_length=255, null=False, blank=False)
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        null=False,
+        blank=False,
+        related_name="lead_company",
+    )
     skype_ID = models.CharField(max_length=100, null=True, blank=True)
     linkedin_id = models.CharField(max_length=100, null=True, blank=True)
     industry = models.CharField(

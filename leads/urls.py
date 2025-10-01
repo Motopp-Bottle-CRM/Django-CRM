@@ -18,4 +18,5 @@ urlpatterns = [
     path("attachment/<str:pk>/", views.LeadAttachmentView.as_view()),
     path("companies",views.CompaniesView.as_view()),
     path('company/<str:pk>', views.CompanyDetail.as_view()),
+    path('status/<str:pk>/', views.LeadStatusUpdateView.as_view()),
 ]
