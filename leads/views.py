@@ -74,12 +74,15 @@ class LeadListView(APIView, LimitOffsetPagination):
             .prefetch_related("tags", "assigned_to")
             .order_by("-id")
         )
-
         if self.request.profile.role == "SALES_MANAGER":
-            queryset = queryset.filter(
-                Q(assigned_to__role__in=["SALES", "SALES_MANAGER"])   # assigned_to is Profile
-                | Q(created_by__profile__role__in=["SALES", "SALES_MANAGER"])  # created_by is User → follow to Profile
-            )
+            # Leads assigned to any sales or sales manager
+            qs_assigned = queryset.filter(assigned_to__role__in=["SALES", "SALES_MANAGER"])
+            
+            # Leads created by any sales or sales manager
+            qs_created = queryset.filter(created_by__profile__role__in=["SALES", "SALES_MANAGER"])
+            print("qs_created - ",qs_created.count(), " ",qs_created)
+            # Combine them with OR, ensuring no duplicates
+            queryset = (qs_assigned | qs_created).distinct()
 
         elif self.request.profile.role == "MARKETING_MANAGER":
             queryset = queryset.filter(
@@ -222,7 +225,11 @@ class LeadListView(APIView, LimitOffsetPagination):
         if serializer.is_valid():
             lead_obj = serializer.save(
                 created_by=request.profile.user, org=request.profile.org
+                #created_by=request.user, org=request.profile.org
             )
+            print("request.user - ", request.user, "request.profile.user ", request.profile.user)
+            print("request.user:", request.user, request.user.id)
+            print("request.auth:", request.auth)
             if data.get("tags", None):
                 tags = data.get("tags")
                 for t in tags:
