@@ -1,33 +1,42 @@
-name: Build & Push (main/develop/tags/manual)
+name: Build, Push & E2E (services)
 
 on:
   push:
-    branches: ["main", "develop"]
-    tags: ["*"]
+    branches: ['**']
+    tags: ['*']
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag to push"
-        required: true
-        default: "manual"
+        description: 'Extra image tag to push (optional)'
+        required: false
+        default: ''
       platforms:
-        description: "Comma-separated platforms"
+        description: 'Comma-separated platforms'
         required: false
-        default: "linux/amd64"
+        default: 'linux/amd64'
       context:
-        description: "Build context path"
+        description: 'Build context path'
         required: false
-        default: "."
+        default: '.'
       dockerfile:
-        description: "Dockerfile path"
+        description: 'Dockerfile path'
         required: false
-        default: "./Dockerfile"
+        default: './docker_version2/dockerfile'
+
+concurrency:
+  group: backend-e2e-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/bottlecrm-backend
+  IMAGE_NAME: ${{ vars.DOCKERHUB_USERNAME }}/bottlecrm-backend
+  # Test runner env (used by pytest calling the API via mapped port)
+  BOTTLECRM_BASE_URL: http://localhost:8000
+  BOTTLECRM_ADMIN_EMAIL: admin@test.com
+  BOTTLECRM_ADMIN_PASSWORD: 123123
 
 jobs:
-  docker:
+  build_and_push:
+    name: Build & Push image
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +49,7 @@ jobs:
       - name: Docker Hub login
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract Docker metadata
@@ -49,25 +58,140 @@ jobs:
         with:
           images: docker.io/${{ env.IMAGE_NAME }}
           tags: |
-            # auto on main
+            # deterministic image for this commit
+            type=sha,format=long
+            # nice branch/tag aliases
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
-            # auto on develop
             type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
-            # auto on tag
             type=ref,event=tag
-            # manual input tag
+            # optional manual tag
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
-            # always also push a sha tag
-            type=sha,format=short
-
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: ${{ github.event.inputs.context != '' && github.event.inputs.context || '.' }}
-          file: ${{ github.event.inputs.dockerfile != '' && github.event.inputs.dockerfile || './docker/dockerfile' }}
+          file: ${{ github.event.inputs.dockerfile != '' && github.event.inputs.dockerfile || './docker_version2/dockerfile' }}
           push: true
           platforms: ${{ github.event.inputs.platforms != '' && github.event.inputs.platforms || 'linux/amd64' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+
+  e2e:
+    name: E2E (services; reuse built image)
+    runs-on: ubuntu-latest
+    needs: build_and_push
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: crm
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U crm"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      bottlecrm:
+        # Reuse image built in previous job
+        image: "${{ needs.build_and_push.outputs.image }}"
+        env:
+          # IMPORTANT: inside the services network, the DB host is the *service name* "postgres"
+          DBNAME: crm
+          DBUSER: crm
+          DBPASSWORD: crm
+          DBHOST: postgres
+          DBPORT: 5432
+          SECRET_KEY: "mco934$@)NHUYTC%6789"
+          ENV_TYPE: "dev"
+          DEFAULT_FROM_EMAIL: "noreply@localhost"
+          ADMIN_EMAIL: "admin@yourdomain.com"
+          DOMAIN_NAME: ""
+          AWS_BUCKET_NAME: ""
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          AWS_SES_REGION_NAME: ""
+          AWS_SES_REGION_ENDPOINT: ""
+          # Sentry
+          SENTRY_DSN: ""
+
+          # Celery
+          CELERY_BROKER_URL: ""
+          CELERY_RESULT_BACKEND: ""
+
+          # Swagger
+          SWAGGER_ROOT_URL: ""
+
+          #CACHES
+          MEMCACHELOCATION: ""
+        ports:
+          - 8000:8000
+        # options: >-
+        #   --health-cmd="sh -c 'wget -qO- http://localhost:8000/ >/dev/null || exit 1'"
+        #   --health-interval=60s
+        #   --health-timeout=5s
+        #   --health-retries=8
+
+    steps:
+      - name: Checkout QA tests
+        uses: actions/checkout@v4
+        with:
+          repository: Motopp-Bottle-CRM/qa-bottlecrm
+          ref: main
+          path: qa
+          token: ${{ secrets.QA_REPO_TOKEN }}
+
+      - name: Set up Python for pytest
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py310-${{ hashFiles('qa/Pytest/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py310-
+      - name: Install QA test dependencies
+        run: |
+          cd qa/Pytest
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Wait for backend service health
+        run: |
+          for i in {1..40}; do
+            if curl -fsS http://localhost:8000/ > /dev/null; then
+              echo "Backend is up"; exit 0
+            fi
+            echo "Waiting for backend... ($i/40)"
+            sleep 3
+          done
+          echo "Backend never became healthy" >&2
+          exit 1
+      - name: Run pytest (E2E)
+        env:
+          BOTTLECRM_BASE_URL: ${{ env.BOTTLECRM_BASE_URL }}
+          BOTTLECRM_ADMIN_EMAIL: ${{ env.BOTTLECRM_ADMIN_EMAIL }}
+          BOTTLECRM_ADMIN_PASSWORD: ${{ env.BOTTLECRM_ADMIN_PASSWORD }}
+          BOTTLECRM_DB_PORT: 5432
+          # (If your tests read DB host/port, they should target the DB through app, not directly.)
+        run: |
+          cd qa/Pytest
+          pytest --maxfail=1 --disable-warnings \
+                 --html=report.html --self-contained-html -q
+      - name: Upload pytest HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-report-${{ github.sha }}
+          path: qa/Pytest/report.html
