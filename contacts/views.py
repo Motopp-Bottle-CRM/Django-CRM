@@ -26,6 +26,8 @@ from contacts.tasks import send_email_to_assigned_user
 from tasks.serializer import TaskSerializer
 from teams.models import Teams
 from common.decorator import role_required
+from rest_framework.parsers import MultiPartParser, FormParser
+from common.permissions import IsInRoles
 
 
 class ContactsListView(APIView, LimitOffsetPagination):
@@ -346,7 +348,7 @@ class ContactDetailView(APIView):
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params,request=ContactDetailEditSwaggerSerializer
     )
-    @role_required("Contacts")  
+    @role_required("Contacts")
     def post(self, request, pk, **kwargs):
         params = request.data
         context = {}
@@ -399,15 +401,58 @@ class ContactDetailView(APIView):
 class ContactCommentView(APIView):
     model = Comment
     # #authentication_classes = (CustomDualAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = [IsAuthenticated, IsInRoles("Contacts")]
 
     def get_object(self, pk):
         return self.model.objects.get(pk=pk)
+    @extend_schema(
+        tags=["Contacts"],
+        parameters=swagger_params1.organization_params,
+        request=ContactCommentEditSwaggerSerializer,
+        responses=CommentSerializer
+    )
+
+    def post(self, request, *args, **kwargs):
+        data = request.data.copy()
+
+        contact_id = kwargs.get("pk") or data.get("contact")
+        if not contact_id:
+            return Response({"error": "Contact id is required"}, status=400)
+
+        try:
+            contact_obj = Contact.objects.get(pk=contact_id)
+        except Contact.DoesNotExist:
+            return Response({"error": "Contact not found"}, status=404)
+
+        serializer = CommentSerializer(data=data)
+        if serializer.is_valid():
+        # Pass the profile instance directly here
+            serializer.save(commented_by=request.profile, contact=contact_obj)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    @extend_schema(
+        tags=["Contacts"],
+        parameters=swagger_params1.organization_params,
+        responses=CommentSerializer(many=True),
+    )
+    @role_required("Contacts")
+    def get(self, request, pk, *args, **kwargs):
+        """Get all comments for a contact"""
+        try:
+            contact = Contact.objects.get(pk=pk)
+        except Contact.DoesNotExist:
+            return Response({"error": "Lead not found"}, status=404)
+
+        comments = Comment.objects.filter(contact=contact).order_by("-commented_on")
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data, status=200)
+
 
     @extend_schema(
         tags=["Contacts"], parameters=swagger_params1.organization_params,request=ContactCommentEditSwaggerSerializer
     )
-    @role_required("Contacts")
+    #@role_required\("Contacts"\)
     def put(self, request, pk, format=None):
         params = request.data
         obj = self.get_object(pk)
@@ -488,3 +533,27 @@ class ContactAttachmentView(APIView):
             },
             status=status.HTTP_403_FORBIDDEN,
         )
+
+    parser_classes = [MultiPartParser, FormParser]
+    @extend_schema(tags=["Contacts"], parameters=swagger_params1.organization_params,request=AttachmentsSerializer)
+    def post(self, request, pk, *args, **kwargs):
+        contact = get_object_or_404(Contact, pk=pk)
+        data = {
+            "attachment": request.data.get("attachment"),
+            "file_name": request.data.get("file_name")
+            }
+        serializer = AttachmentsSerializer(data=data, context={"contact": contact, "request": request})
+        if serializer.is_valid():
+            serializer.save(contact=contact)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(tags=["Contacts"],
+            parameters=swagger_params1.organization_params,
+            responses=AttachmentsSerializer(many=True),)
+    def get(self, request, pk, *args, **kwargs):
+        contact = get_object_or_404(Contact, pk=pk)
+        attachments = contact.contact_attachment.all().order_by("-created_at")
+        serializer = AttachmentsSerializer(attachments, many=True, context={"request": request} )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
