@@ -113,13 +113,35 @@ jobs:
           DBPASSWORD: crm
           DBHOST: postgres
           DBPORT: 5432
+          SECRET_KEY: "mco934$@)NHUYTC%6789"
+          ENV_TYPE: "dev"
+          DEFAULT_FROM_EMAIL: "noreply@localhost"
+          ADMIN_EMAIL: "admin@yourdomain.com"
+          DOMAIN_NAME: ""
+          AWS_BUCKET_NAME: ""
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          AWS_SES_REGION_NAME: ""
+          AWS_SES_REGION_ENDPOINT: ""
+          # Sentry
+          SENTRY_DSN: ""
+            
+          # Celery
+          CELERY_BROKER_URL: ""
+          CELERY_RESULT_BACKEND: ""
+
+          # Swagger
+          SWAGGER_ROOT_URL: ""
+
+          #CACHES
+          MEMCACHELOCATION: ""
         ports:
           - 8000:8000
-        options: >-
-          --health-cmd="sh -c 'wget -qO- http://localhost:8000/ >/dev/null || exit 1'"
-          --health-interval=60s
-          --health-timeout=5s
-          --health-retries=8
+        # options: >-
+        #   --health-cmd="sh -c 'wget -qO- http://localhost:8000/ >/dev/null || exit 1'"
+        #   --health-interval=60s
+        #   --health-timeout=5s
+        #   --health-retries=8
 
     steps:
       - name: Checkout QA tests
@@ -166,6 +188,7 @@ jobs:
           BOTTLECRM_BASE_URL: ${{ env.BOTTLECRM_BASE_URL }}
           BOTTLECRM_ADMIN_EMAIL: ${{ env.BOTTLECRM_ADMIN_EMAIL }}
           BOTTLECRM_ADMIN_PASSWORD: ${{ env.BOTTLECRM_ADMIN_PASSWORD }}
+          BOTTLECRM_DB_PORT: 5432
           # (If your tests read DB host/port, they should target the DB through app, not directly.)
         run: |
           cd qa/Pytest
