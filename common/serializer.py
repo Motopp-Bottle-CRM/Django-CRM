@@ -430,7 +430,7 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     It is swagger for creating or updating user
     """
-   
+
     email = serializers.CharField(max_length=1000, required=True)
     role = serializers.ChoiceField(choices=ROLES, required=True)
     role_permissions = serializers.ChoiceField(choices=ROLE_PERMISSIONS_SHOW, required=False)
@@ -573,11 +573,11 @@ class FormLoginSerializer(serializers.Serializer):
 
         access["user_id"] = str(user.id)
         access["email"] = user.email
-        
+
         # Get the user's primary organization
         try:
             profile = Profile.objects.filter(user=user, is_active=True).first()
-            
+
             print(f"DEBUG: Found profile for user {user.email}: {profile}")
             if profile:
                 role = profile.role
@@ -590,14 +590,14 @@ class FormLoginSerializer(serializers.Serializer):
         except Exception as e:
             print(f"DEBUG: Error getting profile for user {user.email}: {e}")
             org_id = None
-            
+
         return {
             "refresh": str(refresh),
             "access": str(access),
             "user_id": str(user.id),
             "email": user.email,
             "org_id": org_id,
-            "role": role,   # 
+            "role": role,   #
         }
 
     def save(self):
