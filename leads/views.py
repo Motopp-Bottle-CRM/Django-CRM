@@ -205,7 +205,7 @@ class LeadListView(APIView, LimitOffsetPagination):
     )
    # @role_required("Leads")
     def post(self, request, *args, **kwargs):
-
+        print("request.profile.user begin - ",request.profile.user)
         data = request.data
         company_name = data.get("company")
 
@@ -217,12 +217,15 @@ class LeadListView(APIView, LimitOffsetPagination):
             )
 
             data["company"] = company_obj.id
-
+       
         serializer = LeadCreateSerializer(data=data, request_obj=request)
         if serializer.is_valid():
             lead_obj = serializer.save(
                 created_by=request.profile.user, org=request.profile.org
             )
+            print("request.user - ", request.user, "request.profile.user ", request.profile.user)
+            print("request.user:", request.user, request.user.id)
+            print("request.auth:", request.auth)
             if data.get("tags", None):
                 tags = data.get("tags")
                 for t in tags:
@@ -333,6 +336,15 @@ class LeadDetailView(APIView):
         ]
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.user)
+        if self.request.profile.role == "SALES_MANAGER":
+            user_assgn_list.append(self.request.profile.id)
+            user_assgn_list.extend(
+                Profile.objects.filter(role="SALES", org=self.request.profile.org)
+                .values_list("id", flat=True))
+        if self.request.profile.role == "MARKETING_MANAGER":
+            user_assgn_list.append(self.request.profile.id)
+            user_assgn_list.extend(
+                Profile.objects.filter(role="MARKETING", org=self.request.profile.org).values_list("id", flat=True))
 
         comments = Comment.objects.filter(lead=self.lead_obj).order_by("-id")
         attachments = Attachments.objects.filter(lead=self.lead_obj).order_by("-id")
@@ -350,7 +362,7 @@ class LeadDetailView(APIView):
                 ).values("user__email")
             )
         elif self.request.profile.user != self.lead_obj.created_by:
-            users_mention = [{"username": self.lead_obj.created_by.username}]
+            users_mention = [{"username": self.lead_obj.created_by.email}]
         else:
             users_mention = list(self.lead_obj.assigned_to.all().values("user__email"))
         if self.request.profile.role == "ADMIN" or self.request.user.is_superuser:
@@ -361,10 +373,10 @@ class LeadDetailView(APIView):
             users = Profile.objects.filter(
                 role="ADMIN", org=self.request.profile.org
             ).order_by("user__email")
-        user_assgn_list = [
-            assigned_to.id
-            for assigned_to in self.lead_obj.get_assigned_users_not_in_teams
-        ]
+        # user_assgn_list = [
+        #     assigned_to.id
+        #     for assigned_to in self.lead_obj.get_assigned_users_not_in_teams
+        # ]
 
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.id)

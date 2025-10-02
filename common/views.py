@@ -529,7 +529,9 @@ class ApiHomeView(APIView):
             "source": source_name,  
             "value": leads_by_status["converted"].filter(source=source_code).count() or 0
         })
-            
+        
+        recent_leads = leads.filter(status__in=['assigned', 'in_process']).order_by('-created_at')  
+        recent_contacts=contacts.order_by('-created_at') 
         context = {
             "leads_count": total_leads,
             "contacts_count": total_contacts,
@@ -539,8 +541,8 @@ class ApiHomeView(APIView):
             "contacts_this_month": contacts_this_month,
             "kpi_leads": kpi_leads,
             "contacts_source_chart": contacts_source_chart,
-            "contacts": ContactSerializer(contacts, many=True).data,
-            "leads": LeadSerializer(leads, many=True).data,
+            "contacts": ContactSerializer(recent_contacts, many=True).data,
+            "leads": LeadSerializer(recent_leads, many=True).data,
         }
 
         return Response(context, status=status.HTTP_200_OK)
