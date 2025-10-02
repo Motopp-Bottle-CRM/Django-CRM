@@ -205,10 +205,14 @@ class LeadListView(APIView, LimitOffsetPagination):
     )
    # @role_required("Leads")
     def post(self, request, *args, **kwargs):
-        print("request.profile.user begin - ",request.profile.user)
+       # print("request.profile.user begin - ",request.profile.user)
         data = request.data
         company_name = data.get("company")
+        # print("Attributes of request.user:", dir(request.user))  # All methods/attributes
+        # print("Instance variables of request.user:", vars(request.user))  # Only instance vars
 
+        # print("request.profile -", request.profile)
+        # print("Attributes of request.profile:", vars(request.profile))
         if company_name:
             company_obj, _ = Company.objects.get_or_create(
                 name=company_name,
