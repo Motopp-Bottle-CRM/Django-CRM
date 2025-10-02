@@ -482,10 +482,10 @@ class ApiHomeView(APIView):
                 user_filter=User.objects.filter(profile__org=self.request.profile.org)
                 profile_filter = Profile.objects.filter( org=self.request.profile.org)
             
-
+       
         contacts = contacts.filter(
                 Q(assigned_to__in=profile_filter) | Q(created_by__in=user_filter))
-
+        
         leads = leads.filter(
                 Q(assigned_to__in=profile_filter) | Q(created_by__in=user_filter))
 
@@ -495,7 +495,8 @@ class ApiHomeView(APIView):
 
         leads_by_status = {}
         leads_status_count = {}
-
+        
+        print("user_filter - ",user_filter," leads ",leads)
         for status_code, status_name in LEAD_STATUS:
             leads_by_status[status_code] = leads.filter(status=status_code)
             leads_status_count[status_code] = leads_by_status[status_code].count()
@@ -532,6 +533,7 @@ class ApiHomeView(APIView):
         
         recent_leads = leads.filter(status__in=['assigned', 'in_process']).order_by('-created_at')  
         recent_contacts=contacts.order_by('-created_at') 
+        print("recent_contacts ",recent_contacts)
         context = {
             "leads_count": total_leads,
             "contacts_count": total_contacts,
