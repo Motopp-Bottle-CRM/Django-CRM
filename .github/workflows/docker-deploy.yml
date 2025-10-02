@@ -66,6 +66,7 @@ jobs:
             type=ref,event=tag
             # optional manual tag
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
+
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
@@ -101,6 +102,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+
       bottlecrm:
         # Reuse image built in previous job
         image: "${{ needs.build_and_push.outputs.image }}"
@@ -123,7 +125,7 @@ jobs:
           AWS_SES_REGION_ENDPOINT: ""
           # Sentry
           SENTRY_DSN: ""
-
+            
           # Celery
           CELERY_BROKER_URL: ""
           CELERY_RESULT_BACKEND: ""
@@ -162,11 +164,13 @@ jobs:
           key: pip-${{ runner.os }}-py310-${{ hashFiles('qa/Pytest/requirements.txt') }}
           restore-keys: |
             pip-${{ runner.os }}-py310-
+
       - name: Install QA test dependencies
         run: |
           cd qa/Pytest
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Wait for backend service health
         run: |
           for i in {1..40}; do
@@ -178,6 +182,7 @@ jobs:
           done
           echo "Backend never became healthy" >&2
           exit 1
+
       - name: Run pytest (E2E)
         env:
           BOTTLECRM_BASE_URL: ${{ env.BOTTLECRM_BASE_URL }}
@@ -189,6 +194,7 @@ jobs:
           cd qa/Pytest
           pytest --maxfail=1 --disable-warnings \
                  --html=report.html --self-contained-html -q
+
       - name: Upload pytest HTML report
         uses: actions/upload-artifact@v4
         if: always()
