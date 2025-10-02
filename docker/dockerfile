@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
+    postgresql-client\
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,6 +28,7 @@ COPY . /app
 COPY docker/entrypoint.sh /app/
 COPY docker/wait-for-postgres.sh /app/
 RUN chmod +x /app/entrypoint.sh /app/wait-for-postgres.sh
+RUN cp /app/ENV.md /app/.env
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
