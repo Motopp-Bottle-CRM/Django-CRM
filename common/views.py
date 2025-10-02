@@ -993,14 +993,17 @@ class UserStatusView(APIView):
             user_status = params.get("status")
             if user_status == "Active":
                 profile.is_active = True
+                profile.user.is_active = True
             elif user_status == "Inactive":
                 profile.is_active = False
+                profile.user.is_active = False
             else:
                 return Response(
                     {"error": True, "errors": "Please enter Valid Status for user"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             profile.save()
+            profile.user.save()
 
         context = {}
         active_profiles = profiles.filter(is_active=True)
@@ -1171,7 +1174,19 @@ class GoogleLoginView(APIView):
             # Get or create user
             try:
                 user = User.objects.get(email=data["email"])
+                # Check if user is active
+                if not user.is_active:
+                    return Response(
+                        {"error": "User account is inactive"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 profile = Profile.objects.get(user_id=user.id)
+                # Check if profile is active
+                if not profile.is_active:
+                    return Response(
+                        {"error": "User account is inactive"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 role = profile.role
             except User.DoesNotExist:
                 user = User()
