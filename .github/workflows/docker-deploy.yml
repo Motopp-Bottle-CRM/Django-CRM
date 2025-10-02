@@ -21,7 +21,7 @@ on:
       dockerfile:
         description: 'Dockerfile path'
         required: false
-        default: './docker_version2/dockerfile'
+        default: './docker/dockerfile'
 
 concurrency:
   group: backend-e2e-${{ github.ref }}
@@ -71,7 +71,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ github.event.inputs.context != '' && github.event.inputs.context || '.' }}
-          file: ${{ github.event.inputs.dockerfile != '' && github.event.inputs.dockerfile || './docker_version2/dockerfile' }}
+          file: ${{ github.event.inputs.dockerfile != '' && github.event.inputs.dockerfile || './docker/dockerfile' }}
           push: true
           platforms: ${{ github.event.inputs.platforms != '' && github.event.inputs.platforms || 'linux/amd64' }}
           tags: ${{ steps.meta.outputs.tags }}
