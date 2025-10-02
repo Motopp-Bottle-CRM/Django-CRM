@@ -551,6 +551,16 @@ class FormLoginSerializer(serializers.Serializer):
             print(f"DEBUG: User account is inactive: {user.email}")
             raise serializers.ValidationError("User account is inactive.")
 
+        # Check if user has an active profile
+        try:
+            profile = Profile.objects.filter(user=user, is_active=True).first()
+            if not profile:
+                print(f"DEBUG: No active profile found for user: {user.email}")
+                raise serializers.ValidationError("User account is inactive.")
+        except Exception as e:
+            print(f"DEBUG: Error checking profile for user {user.email}: {e}")
+            raise serializers.ValidationError("User account is inactive.")
+
         attrs["user"] = user
         return attrs
 

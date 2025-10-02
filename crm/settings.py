@@ -97,6 +97,7 @@ MIDDLEWARE = [
     "crum.CurrentRequestUserMiddleware",
     # "common.external_auth.CustomDualAuthentication"
     "common.middleware.get_company.GetProfileAndOrg",
+    "common.middleware.user_status_check.UserStatusCheckMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
 
