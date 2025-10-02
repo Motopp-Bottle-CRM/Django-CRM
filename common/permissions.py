@@ -1,5 +1,5 @@
 from common.models import Profile
-from tkinter import FALSE
+# from tkinter import FALSE
 from rest_framework.permissions import BasePermission
 class IsNotDeletedUser(BasePermission):
     """
