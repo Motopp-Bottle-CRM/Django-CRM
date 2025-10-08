@@ -144,7 +144,9 @@ Get help or stay up to date.
 
 This project exists thanks to all the people who contribute!
 
-![image](https://opencollective.com/django-crm/contributors.svg?width=890&button=false)
+<div align="center">
+  <img src="contributors.png" alt="Contributors" width="400" />
+</div>
 
 ### Feature requests and bug reports
 
