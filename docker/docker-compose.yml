@@ -1,7 +1,7 @@
 version: '3'
 services:
   crm-app:
-    image: djcrm:1
+    image: djcrm:develop
     container_name: crm-app
     environment:
       - DBNAME=crm

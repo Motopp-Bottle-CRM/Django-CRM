@@ -8,6 +8,8 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from common.utils import  ROLES ,ROLE_PERMISSIONS_SHOW
+
 from common.models import (
     Address,
     APISettings,
@@ -234,6 +236,16 @@ class CreateProfileSerializer(serializers.ModelSerializer):
             return cleaned_phone
         return value
 
+    def validate(self, attrs):
+        """Cross-field validation to ensure alternate phone differs from phone."""
+        phone = attrs.get("phone")
+        alternate_phone = attrs.get("alternate_phone")
+        if phone and alternate_phone and phone == alternate_phone:
+            raise serializers.ValidationError({
+                "alternate_phone": "Alternate phone cannot be the same as phone"
+            })
+        return attrs
+
 
 class UserSerializer(serializers.ModelSerializer):
 
@@ -413,24 +425,24 @@ class DocumentEditSwaggerSerializer(serializers.ModelSerializer):
         fields = ["title", "document_file", "teams", "shared_to", "status"]
 
 
+
 class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     It is swagger for creating or updating user
     """
 
-    ROLE_CHOICES = ["ADMIN", "USER"]
-
     email = serializers.CharField(max_length=1000, required=True)
-    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
-    phone = serializers.CharField(max_length=12)
-    alternate_phone = serializers.CharField(max_length=12)
-    address_line = serializers.CharField(max_length=10000, required=True)
-    street = serializers.CharField(max_length=1000)
-    city = serializers.CharField(max_length=1000)
-    state = serializers.CharField(max_length=1000)
-    pincode = serializers.CharField(max_length=1000)
-    country = serializers.CharField(max_length=1000)
+    role = serializers.ChoiceField(choices=ROLES, required=True)
+    role_permissions = serializers.ChoiceField(choices=ROLE_PERMISSIONS_SHOW, required=False)
 
+    phone = serializers.CharField(max_length=12)
+    alternate_phone = serializers.CharField(max_length=12,required=False, allow_blank=True)
+    address_line = serializers.CharField(max_length=10000, required=False)
+    street = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    city = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    state = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    pincode = serializers.CharField(max_length=1000,required=False, allow_blank=True)
+    country = serializers.CharField(max_length=1000,required=False, allow_blank=True)
 
 class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
 
@@ -539,6 +551,16 @@ class FormLoginSerializer(serializers.Serializer):
             print(f"DEBUG: User account is inactive: {user.email}")
             raise serializers.ValidationError("User account is inactive.")
 
+        # Check if user has an active profile
+        try:
+            profile = Profile.objects.filter(user=user, is_active=True).first()
+            if not profile:
+                print(f"DEBUG: No active profile found for user: {user.email}")
+                raise serializers.ValidationError("User account is inactive.")
+        except Exception as e:
+            print(f"DEBUG: Error checking profile for user {user.email}: {e}")
+            raise serializers.ValidationError("User account is inactive.")
+
         attrs["user"] = user
         return attrs
 
@@ -551,11 +573,11 @@ class FormLoginSerializer(serializers.Serializer):
 
         access["user_id"] = str(user.id)
         access["email"] = user.email
-        
+
         # Get the user's primary organization
         try:
             profile = Profile.objects.filter(user=user, is_active=True).first()
-            
+
             print(f"DEBUG: Found profile for user {user.email}: {profile}")
             if profile:
                 role = profile.role
@@ -568,14 +590,14 @@ class FormLoginSerializer(serializers.Serializer):
         except Exception as e:
             print(f"DEBUG: Error getting profile for user {user.email}: {e}")
             org_id = None
-            
+
         return {
             "refresh": str(refresh),
             "access": str(access),
             "user_id": str(user.id),
             "email": user.email,
             "org_id": org_id,
-            "role": role,   # 
+            "role": role,   #
         }
 
     def save(self):
@@ -605,3 +627,5 @@ class SetPasswordFromInvitationSerializer(serializers.Serializer):
         if not re.search(r'\d', value):
             raise serializers.ValidationError("Password must contain at least one digit.")
         return value
+
+

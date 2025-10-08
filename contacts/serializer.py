@@ -21,9 +21,15 @@ class ContactSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField()
     org = OrganizationSerializer()
     country = serializers.SerializerMethodField()
+    created_by_email = serializers.SerializerMethodField()
 
     def get_country(self, obj):
         return obj.get_country_display()
+
+    def get_created_by_email(self, obj):
+        if obj.created_by:
+            return obj.created_by.email
+        return None
 
     class Meta:
         model = Contact
@@ -33,7 +39,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "date_of_birth",
-            "organization",
+            # "organization",
             "title",
             "primary_email",
             "secondary_email",
@@ -51,6 +57,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "contact_attachment",
             "assigned_to",
             "created_by",
+            "created_by_email",
             "created_at",
             "is_active",
             "teams",
@@ -68,6 +75,9 @@ class CreateContactSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         if request_obj:
             self.org = request_obj.profile.org
+        # Make department and language optional
+        self.fields['department'].required = False
+        self.fields['language'].required = False
 
     def validate_first_name(self, first_name):
         if self.instance:
@@ -95,7 +105,7 @@ class CreateContactSerializer(serializers.ModelSerializer):
             "salutation",
             "first_name",
             "last_name",
-            "organization",
+            # "organization",
             "title",
             "primary_email",
             "secondary_email",

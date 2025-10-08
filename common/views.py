@@ -75,7 +75,9 @@ from .serializer import SetPasswordSerializer
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 import uuid
 from common.decorator import role_required
- 
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
+from common.utils import LEAD_SOURCE,LEAD_STATUS
 class GetTeamsAndUsersView(APIView):
 
     permission_classes = (IsAuthenticated,)
@@ -99,10 +101,51 @@ class UsersListView(APIView, LimitOffsetPagination):
 
     permission_classes = (IsAuthenticated,IsNotDeletedUser)
 
-    @extend_schema(tags=["Users"],
+    # @extend_schema(tags=["Users"],
+    #     parameters=swagger_params1.organization_params,
+    #     request=UserCreateSwaggerSerializer,
+    # )
+    @extend_schema(
+        tags=["Users"],
         parameters=swagger_params1.organization_params,
         request=UserCreateSwaggerSerializer,
+        examples=[
+            OpenApiExample(
+                "Required fields example",
+                summary="Minimal payload with required fields only",
+                value={
+                    "email": "user@example.com",
+                    "role": "ADMIN",
+                    "phone": "+912345678911"
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Full payload example",
+                summary="All fields included",
+                value={
+                    "email": "user@example.com",
+                    "role": "SALES",
+                    "phone": "+912345678911",
+                    "alternate_phone": "987654321",
+                    "address_line": "123 Main St",
+                    "street": "Main Street",
+                    "city": "New York",
+                    "state": "NY",
+                    "pincode": "10001",
+                    "country": "US"
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+            "Role permissions",
+            description="Modules accessible for each role",
+            value=ROLE_PERMISSIONS_SHOW,
+        )
+        ],
     )
+
+
     @role_required("Users")
     def post(self, request, format=None):
 
@@ -117,7 +160,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                 user_serializer = CreateUserSerializer(
                     data=params, org=request.profile.org
                 )
-                address_serializer = BillingAddressSerializer(data=params)
+                address_serializer = BillingAddressSerializer(data=params, user_creation=True)
                 profile_serializer = CreateProfileSerializer(data=params)
                 data = {}
                 if not user_serializer.is_valid():
@@ -138,7 +181,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                     existing_user = User.objects.filter(email=params.get("email")).first()
                     if existing_user:
                         return Response(
-                            {"error": True, "errors": {"email": "User with this email already exists"}},
+                            {"error": True, "errors": {"user_errors": {"email": ["User with this email already exists"]}}},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
@@ -327,7 +370,7 @@ class UserDetailView(APIView):
         serializer = CreateUserSerializer(
             data=params, instance=profile.user, org=request.profile.org
         )
-        address_serializer = BillingAddressSerializer(data=params, instance=address_obj)
+        address_serializer = BillingAddressSerializer(data=params, instance=address_obj, user_creation=True)
         profile_serializer = CreateProfileSerializer(data=params, instance=profile)
         data = {}
         if not serializer.is_valid():
@@ -415,41 +458,91 @@ class ApiHomeView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Dashboard"],parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
-        accounts = Account.objects.filter(status="open", org=request.profile.org)
+       
         contacts = Contact.objects.filter(org=request.profile.org)
-        leads = Lead.objects.filter(org=request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
-        )
-        opportunities = Opportunity.objects.filter(org=request.profile.org)
+        leads = Lead.objects.filter(org=request.profile.org)
+        
+        user=self.request.profile.user
+        user_filter = [user]
+        profile=self.request.profile
+        profile_filter=[profile]
 
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            accounts = accounts.filter(
-                Q(assigned_to=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
-            contacts = contacts.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
-            leads = leads.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            ).exclude(status="closed")
-            opportunities = opportunities.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
-        context = {}
-        context["accounts_count"] = accounts.count()
-        context["contacts_count"] = contacts.count()
-        context["leads_count"] = leads.count()
-        context["opportunities_count"] = opportunities.count()
-        context["accounts"] = AccountSerializer(accounts, many=True).data
-        context["contacts"] = ContactSerializer(contacts, many=True).data
-        context["leads"] = LeadSerializer(leads, many=True).data
-        context["opportunities"] = OpportunitySerializer(opportunities, many=True).data
+        role=self.request.profile.role
+# for managers - show for whole department
+        if role == "SALES_MANAGER" or role == "MARKETING_MANAGER" or role=='ADMIN':
+            if role == "SALES_MANAGER":
+                user_filter = User.objects.filter(profile__role__in=['SALES', 'SALES_MANAGER'])
+                profile_filter = Profile.objects.filter(role__in=['SALES', 'SALES_MANAGER'])
+            elif role == "MARKETING_MANAGER":
+                user_filter = User.objects.filter(profile__role__in=['MARKETING', 'MARKETING_MANAGER'])
+                profile_filter = Profile.objects.filter(role__in=['MARKETING', 'MARKETING_MANAGER'])
+            else:
+                user_filter=User.objects.filter(profile__org=self.request.profile.org)
+                profile_filter = Profile.objects.filter( org=self.request.profile.org)
+            
+
+        contacts = contacts.filter(
+                Q(assigned_to__in=profile_filter) | Q(created_by__in=user_filter))
+
+        leads = leads.filter(
+                Q(assigned_to__in=profile_filter) | Q(created_by__in=user_filter))
+
+        #making everything in one responce
+        total_leads = leads.count()
+        total_contacts=contacts.count()
+
+        leads_by_status = {}
+        leads_status_count = {}
+
+        for status_code, status_name in LEAD_STATUS:
+            leads_by_status[status_code] = leads.filter(status=status_code)
+            leads_status_count[status_code] = leads_by_status[status_code].count()
+ 
+        
+        now = timezone.now()
+        first_day_current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        leads_this_month =  leads.filter(
+            created_at__gte=first_day_current_month,
+            created_at__lte=now,
+            created_by__in=user_filter
+        ).count()
+        leads_in_process_this_month =  leads_by_status["in_process"].filter(
+            created_at__gte=first_day_current_month,
+            created_at__lte=now,
+            created_by__in=user_filter
+        ).count()      
+
+        kpi_leads = (leads_status_count["converted"] / total_leads) if total_leads else 0
+        
+  
+        contacts_this_month =  contacts.filter(
+            created_at__gte=first_day_current_month,
+            created_at__lte=now,
+            created_by__in=user_filter
+        ).count()
+
+        contacts_source_chart=[]
+        for source_code, source_name in LEAD_SOURCE:
+            contacts_source_chart.append({
+            "source": source_name,  
+            "value": leads_by_status["converted"].filter(source=source_code).count() or 0
+        })
+            
+        context = {
+            "leads_count": total_leads,
+            "contacts_count": total_contacts,
+            "leads_status_count": leads_status_count,
+            "leads_this_month": leads_this_month,
+            "leads_in_process_this_month": leads_in_process_this_month,
+            "contacts_this_month": contacts_this_month,
+            "kpi_leads": kpi_leads,
+            "contacts_source_chart": contacts_source_chart,
+            "contacts": ContactSerializer(contacts, many=True).data,
+            "leads": LeadSerializer(leads, many=True).data,
+        }
+
         return Response(context, status=status.HTTP_200_OK)
 
 
@@ -552,9 +645,9 @@ class ProfileView(APIView):
         # Initialize serializers
         serializer = CreateUserSerializer(data=params, instance=profile.user, org=profile.org)
         if address_obj:
-            address_serializer = BillingAddressSerializer(data=params, instance=address_obj)
+            address_serializer = BillingAddressSerializer(data=params, instance=address_obj, user_creation=True)
         else:
-            address_serializer = BillingAddressSerializer(data=params)
+            address_serializer = BillingAddressSerializer(data=params, user_creation=True)
 
         profile_serializer = CreateProfileSerializer(data=params, instance=profile)
 
@@ -900,14 +993,17 @@ class UserStatusView(APIView):
             user_status = params.get("status")
             if user_status == "Active":
                 profile.is_active = True
+                profile.user.is_active = True
             elif user_status == "Inactive":
                 profile.is_active = False
+                profile.user.is_active = False
             else:
                 return Response(
                     {"error": True, "errors": "Please enter Valid Status for user"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             profile.save()
+            profile.user.save()
 
         context = {}
         active_profiles = profiles.filter(is_active=True)
@@ -1078,7 +1174,19 @@ class GoogleLoginView(APIView):
             # Get or create user
             try:
                 user = User.objects.get(email=data["email"])
+                # Check if user is active
+                if not user.is_active:
+                    return Response(
+                        {"error": "User account is inactive"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 profile = Profile.objects.get(user_id=user.id)
+                # Check if profile is active
+                if not profile.is_active:
+                    return Response(
+                        {"error": "User account is inactive"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 role = profile.role
             except User.DoesNotExist:
                 user = User()
